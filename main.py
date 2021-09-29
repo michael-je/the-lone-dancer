@@ -1,23 +1,33 @@
-import discord, os
+import discord, asyncio
 
 import secrets
 
-client = discord.Client()
 
-# called when the bot is ready to be used
-@client.event
-async def on_ready():
-    print(f"We have logged in as {client.user}")
+class MusicBot(discord.Client):
+    def __init__(self):
+        super().__init__()
 
-# called on message receive events
-@client.event
-async def on_message(message):
-    # don't do anything if the message is from the bot
-    if message.author == client.user:
-        return
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
+    # https://medium.com/@vadimpushtaev/decorator-inside-python-class-1e74d23107f6
+    # https://stackoverflow.com/questions/7473096/python-decorators-how-to-use-parent-class-decorators-in-a-child-class
+    super_instance = discord.Client()
+
+    def event(self, coro):
+        super().event(coro)
+
+    @super_instance.event
+    async def on_ready(self):
+        print(f"We have logged in as {super().user}")
+
+    @super_instance.event
+    async def on_message(self, message):
+        if message.author == helper.user:
+            return
+        if message.content.startswith('!hello'):
+            await message.channel.send('Hello!')
+
+
+musicBot = MusicBot()
 
 # TODO figure out how to get environment variables to work
-# client.run(os.getenv('TOKEN'))
-client.run(secrets.TOKEN)
+# musicBot.run(os.getenv('TOKEN'))
+musicBot.run(secrets.TOKEN)

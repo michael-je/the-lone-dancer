@@ -1,13 +1,21 @@
-## The Lone Dancer - Discord music bot
+# The Lone Dancer - Discord music bot
 This project is still in development. The goal is to create a simple music playing bot for our discord server. It should be able to connect to a voice channel, accept basic commands and play back audio from youtube.
 
 ---
-### Requirements
-- python3
-- python-pip
+## Quickstart
+1. Install python dependencies (see Development setup below for troubleshooting):
+		python3 -m pip install --no-deps -r requirements.txt
 
----
-### Setup (Linux)
+2. Start the bot:
+		python3 bot.py
+
+
+## Development setup (Linux)
+### Requirements
+- `python3`
+- `discord.py`
+
+### Setup
 1. Make sure `python3` and `python-pip` are installed. (On Arch-Linux):
 		
 		$ sudo pacman -Syu
@@ -27,13 +35,13 @@ This project is still in development. The goal is to create a simple music playi
 5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
 6. Create secrets.py using the example:
 		
-		$ cp secrets.py.example secrets.py
-	Then replace the empty `TOKEN` string with your generated token from the previous step.
+		$ cp .secrets.default .secrets
+	Then replace the empty `TOKEN` field with your generated token from the previous step.
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
-8. Run it:
+8. Run the bot:
 
 		$ python3 main.py
-	*Currently the only working chat command is `!hello`. Type this in the server chat to check if the bot is working.*
+9. Verify the bot is running by typing `!hello` in the discord server with the bot.
 
 ---
 ### Next Steps

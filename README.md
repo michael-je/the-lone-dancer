@@ -9,7 +9,13 @@ This project is still in development. The goal is to create a simple music playi
 2. Start the bot:
 		python3 bot.py
 
+---
+## Main features
+- Accepts links and search terms for audo streaming
+- Play, pause, skip, scrub, queue, and more!
+- Stream the audio into the voice channel you're in 🎶
 
+---
 ## Development setup (Linux)
 ### Requirements
 - `python3`
@@ -57,21 +63,5 @@ This project is still in development. The goal is to create a simple music playi
 - [setting up a basic discord bot](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/)
 - [discord.py](https://github.com/Rapptz/discord.py)
 	- [documentation](https://discordpy.readthedocs.io/en/latest/quickstart.html#a-minimal-bot)
-	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example is thrown a 403 error when trying to connect to youtube*
+	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example is throws a 403 error when trying to connect to youtube*
 - [The original discord music bot](https://github.com/k5van/Catharsis-Bot)
-
----
-### Logic
-1. read from chat, accept:
-	- search terms
-	- youtube links
-	- other basic commands (*play, pause, skip, etc*)
-2. parse command (here we only discuss how to handle audio playback)
-	- if the command is a search term rather than a youtube URL:
-		- convert the search directly into a youtube search link using `urllib3.parse.quote_plus()`
-		- parse the resulting page for the link to the first video
-3. Stream the audio into the voice channel. *A few ideas:*
-	1. visit the page using a browser and connect the output audio directly to the bot via some kind of audio sink/socket (jack?)
-	2. use `voice.create_ytdl_channel()`, listed above.
-	3. Use some other external tool like vlc or ffmpeg to capture the audio.
-	4. *If audio cannot be streamed from youtube then we can try to download the video instead, and then play that back into the bot. This is probably easier than streaming, but not preferred.*

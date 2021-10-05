@@ -5,11 +5,11 @@ This project is still in development. The goal is to create a simple music playi
 ## Quickstart
 1. Install python dependencies (see Development setup below for troubleshooting):
 		
-		$ python3 -m pip install --no-deps -r requirements.txt
+		python3 -m pip install --no-deps -r requirements.txt
 
 2. Run the bot:
 		
-		$ python3 bot.py
+		python3 bot.py
 
 ---
 ## Main features
@@ -26,29 +26,29 @@ This project is still in development. The goal is to create a simple music playi
 ### Setup
 1. Make sure `python3` and `python-pip` are installed. (On Arch-Linux):
 		
-		$ sudo pacman -Syu
-		$ sudo pacman -S python3 python-pip
+		sudo pacman -Syu
+		sudo pacman -S python3 python-pip
 2. Fork the repository on github, clone it onto your machine and move into the directory:
 	
-		$ git clone git@<your-fork>.git
-		$ cd the-lone-dancer
+		git clone git@<your-fork>.git
+		cd the-lone-dancer
 3. Optionally create a new virtual environment and activate it:
 
-		$ pip3 install virtualenv
-		$ virtualenv venv
-		$ source venv/bin/activate
+		pip3 install virtualenv
+		virtualenv venv
+		source venv/bin/activate
 4. Install required python libraries:
 
-		$ pip3 install -r requirements.txt
+		pip3 install -r requirements.txt
 5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
 6. Create a config file using the example:
 		
-		$ cp bot.conf.example bot.conf
+		cp bot.conf.example bot.conf
 	Then replace the empty `TOKEN` field with your generated token from the previous step.
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
 8. Run the bot:
 
-		$ python3 bot.py
+		python3 bot.py
 9. Verify the bot is running by typing `!hello` in the discord server with the bot.
 
 ---

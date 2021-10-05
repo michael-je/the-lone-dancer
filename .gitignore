@@ -9,4 +9,4 @@ secrets.py
 *.sw[op]
 
 // Make target files
-.targe-*
+.target-*

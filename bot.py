@@ -42,7 +42,8 @@ if __name__ == '__main__':
     token = os.getenv('TOKEN')
     if token is None:
         config = configparser.ConfigParser()
-        config.read("bot.conf")
+        # CONFIG_DIR is replaced with the correct config directory at install
+        config.read("CONFIG_DIR/bot.conf")
         token = config['secrets']['TOKEN']
 
     logging.info("Starting bot")

@@ -2,6 +2,10 @@
 This project is still in development. The goal is to create a simple music playing bot for our discord server. It should be able to connect to a voice channel, accept basic commands and play back audio from youtube.
 
 ---
+## Installing
+		sudo make install
+
+---
 ## Quickstart
 1. Install python dependencies (see Development setup below for troubleshooting):
 		python3 -m pip install --no-deps -r requirements.txt

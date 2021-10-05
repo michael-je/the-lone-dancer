@@ -1,0 +1,10 @@
+[Unit]
+Description=A super cool Discord bot
+After=basic.target
+
+[Service]
+User=discord-bot
+ExecStart=/usr/bin/python3 /usr/local/bin/bot.py
+
+[Install]
+WantedBy=multi-user.target

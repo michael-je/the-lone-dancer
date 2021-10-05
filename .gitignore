@@ -7,3 +7,6 @@ secrets.py
 // ViM files
 *.vim
 *.sw[op]
+
+// Make target files
+.targe-*

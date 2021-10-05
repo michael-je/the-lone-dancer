@@ -9,17 +9,17 @@ This project is still in development. The goal is to create a simple music playi
 ---
 ### Setup for contributions (Linux)
 1. Fork the repository on github, clone it onto your machine and move into the directory:
-	`$ git clone git@<your fork link>.git`
-	`$ cd the-lone-dancer`
+		$ git clone git@<your fork link>.git
+		$ cd the-lone-dancer
 2. Optionally create a new virtual environment and activate it:
-	`$ pip3 install virtualenv`
-	`$ virtualenv venv`
-	`$ source /venv/bin/activate`
+		$ pip3 install virtualenv
+		$ virtualenv venv
+		$ source /venv/bin/activate
 3. Install required python libraries:
-	`$ pip3 install -r requirements.txt`
+		$ pip3 install -r requirements.txt
 4. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/) to create a discord bot and generate an API token for it. 
 5. Create secrets.py using the example:
-	`$ cp secrets.py.example secrets.py`
+		$ cp secrets.py.example secrets.py
 	Then replace the empty `TOKEN` string with your generated token from step 4.
 
 ---

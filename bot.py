@@ -16,14 +16,14 @@ class MusicBot(discord.Client):
     The main bot functionality
     """
 
-    client = discord.Client()
+    _discord_helper = discord.Client()
 
-    @client.event
+    @_discord_helper.event
     async def on_ready(self):
         """ Login and loading handling """
         logging.info("we have logged in as %s", self.user)
 
-    @client.event
+    @_discord_helper.event
     async def on_message(self, message):
         """ Handler for receiving messages """
         if message.author == self.user:
@@ -42,8 +42,8 @@ if __name__ == '__main__':
     token = os.getenv('TOKEN')
     if token is None:
         config = configparser.ConfigParser()
-        config.read(".env")
-        token = config['SECRETS']['TOKEN']
+        config.read("bot.conf")
+        token = config['secrets']['TOKEN']
 
     logging.info("Starting bot")
     MusicBot().run(token)

@@ -39,9 +39,9 @@ This project is still in development. The goal is to create a simple music playi
 
 		$ pip3 install -r requirements.txt
 5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
-6. Create secrets.py using the example:
+6. Create a config file using the example:
 		
-		$ cp .secrets.default .secrets
+		$ cp bot.conf.example bot.conf
 	Then replace the empty `TOKEN` field with your generated token from the previous step.
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
 8. Run the bot:
@@ -63,5 +63,5 @@ This project is still in development. The goal is to create a simple music playi
 - [setting up a basic discord bot](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/)
 - [discord.py](https://github.com/Rapptz/discord.py)
 	- [documentation](https://discordpy.readthedocs.io/en/latest/quickstart.html#a-minimal-bot)
-	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example is throws a 403 error when trying to connect to youtube*
+	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example throws a 403 error when trying to connect to youtube*
 - [The original discord music bot](https://github.com/k5van/Catharsis-Bot)

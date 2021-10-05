@@ -1,13 +1,27 @@
-## The Lone Dancer - Discord music bot
+# The Lone Dancer - Discord music bot
 This project is still in development. The goal is to create a simple music playing bot for our discord server. It should be able to connect to a voice channel, accept basic commands and play back audio from youtube.
 
 ---
-### Requirements
-- python3
-- python-pip
+## Quickstart
+1. Install python dependencies (see Development setup below for troubleshooting):
+		python3 -m pip install --no-deps -r requirements.txt
+
+2. Start the bot:
+		python3 bot.py
 
 ---
-### Setup (Linux)
+## Main features
+- Accepts links and search terms for audo streaming
+- Play, pause, skip, scrub, queue, and more!
+- Stream the audio into the voice channel you're in 🎶
+
+---
+## Development setup (Linux)
+### Requirements
+- `python3`
+- `discord.py`
+
+### Setup
 1. Make sure `python3` and `python-pip` are installed. (On Arch-Linux):
 		
 		$ sudo pacman -Syu
@@ -25,15 +39,15 @@ This project is still in development. The goal is to create a simple music playi
 
 		$ pip3 install -r requirements.txt
 5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
-6. Create secrets.py using the example:
+6. Create a config file using the example:
 		
-		$ cp secrets.py.example secrets.py
-	Then replace the empty `TOKEN` string with your generated token from the previous step.
+		$ cp bot.conf.example bot.conf
+	Then replace the empty `TOKEN` field with your generated token from the previous step.
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
-8. Run it:
+8. Run the bot:
 
 		$ python3 main.py
-	*Currently the only working chat command is `!hello`. Type this in the server chat to check if the bot is working.*
+9. Verify the bot is running by typing `!hello` in the discord server with the bot.
 
 ---
 ### Next Steps
@@ -49,21 +63,5 @@ This project is still in development. The goal is to create a simple music playi
 - [setting up a basic discord bot](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/)
 - [discord.py](https://github.com/Rapptz/discord.py)
 	- [documentation](https://discordpy.readthedocs.io/en/latest/quickstart.html#a-minimal-bot)
-	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example is thrown a 403 error when trying to connect to youtube*
+	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example throws a 403 error when trying to connect to youtube*
 - [The original discord music bot](https://github.com/k5van/Catharsis-Bot)
-
----
-### Logic
-1. read from chat, accept:
-	- search terms
-	- youtube links
-	- other basic commands (*play, pause, skip, etc*)
-2. parse command (here we only discuss how to handle audio playback)
-	- if the command is a search term rather than a youtube URL:
-		- convert the search directly into a youtube search link using `urllib3.parse.quote_plus()`
-		- parse the resulting page for the link to the first video
-3. Stream the audio into the voice channel. *A few ideas:*
-	1. visit the page using a browser and connect the output audio directly to the bot via some kind of audio sink/socket (jack?)
-	2. use `voice.create_ytdl_channel()`, listed above.
-	3. Use some other external tool like vlc or ffmpeg to capture the audio.
-	4. *If audio cannot be streamed from youtube then we can try to download the video instead, and then play that back into the bot. This is probably easier than streaming, but not preferred.*

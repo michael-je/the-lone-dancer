@@ -1,6 +1,9 @@
 /dev
 /venv
-.env
+bot.conf
 /__pycache__
 secrets.py
 
+// ViM files
+*.vim
+*.sw[op]

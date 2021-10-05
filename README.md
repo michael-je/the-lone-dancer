@@ -4,10 +4,12 @@ This project is still in development. The goal is to create a simple music playi
 ---
 ## Quickstart
 1. Install python dependencies (see Development setup below for troubleshooting):
-		python3 -m pip install --no-deps -r requirements.txt
+		
+		$ python3 -m pip install --no-deps -r requirements.txt
 
-2. Start the bot:
-		python3 bot.py
+2. Run the bot:
+		
+		$ python3 bot.py
 
 ---
 ## Main features
@@ -46,7 +48,7 @@ This project is still in development. The goal is to create a simple music playi
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
 8. Run the bot:
 
-		$ python3 main.py
+		$ python3 bot.py
 9. Verify the bot is running by typing `!hello` in the discord server with the bot.
 
 ---

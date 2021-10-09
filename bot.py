@@ -7,8 +7,55 @@ Author MikkMakk88, morgaesis et al.
 import os
 import configparser
 import logging
+import time
 
 import discord  # pylint: disable=import-error
+import jokeapi  # pylint: disable=import-error
+
+
+async def bot_joke(msg, joke_pause=3):
+    """
+    Reply to the author with joke from Sv443's Joke API
+
+    If the joke is two-parter wait `joke_pause` seconds between setup and
+    delivery.
+    """
+    logging.info("Making jokes: %s", msg)
+    content = msg.content
+    argv = [] if len(content.split()) < 2 else content.split()[1:]
+
+    valid_categories = ['any', 'misc', 'programming', 'dark', 'pun', 'spooky',
+                        'christmas']
+    # Setup complete
+
+    # User asks for help
+    if 'help' in argv or '-h' in argv or '--help' in argv:
+        await msg.channel.send("I see you asked for help!")
+        await msg.channel.send("You can ask for the following categories:")
+        await msg.channel.send(f"{valid_categories}")
+        return
+
+    # User asks for categories
+    for category in argv:
+        category = category.lower()
+        if category not in valid_categories:
+            await msg.channel.send(f"Invalid joke category '{category}'")
+    categories = argv
+
+    # Get the joke
+    jokes = jokeapi.Jokes()
+    joke = jokes.get_joke(category=categories)
+    logging.info("User %s requested joke of category %s",
+                 msg.author, categories)
+    logging.info("The joke is: %s", joke)
+
+    # Joke can be one-liner or has setup
+    if joke['type'] == 'single':
+        await msg.channel.send(joke['joke'])
+    else:
+        await msg.channel.send(joke['setup'])
+        time.sleep(joke_pause)
+        await msg.channel.send(joke['delivery'])
 
 
 class MusicBot(discord.Client):

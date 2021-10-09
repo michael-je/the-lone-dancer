@@ -24,12 +24,19 @@ async def bot_joke(msg, joke_pause=3):
     content = msg.content
     argv = [] if len(content.split()) < 2 else content.split()[1:]
 
-    valid_categories = ['any', 'misc', 'programming', 'dark', 'pun', 'spooky',
-                        'christmas']
+    valid_categories = [
+        "any",
+        "misc",
+        "programming",
+        "dark",
+        "pun",
+        "spooky",
+        "christmas",
+    ]
     # Setup complete
 
     # User asks for help
-    if 'help' in argv or '-h' in argv or '--help' in argv:
+    if "help" in argv or "-h" in argv or "--help" in argv:
         await msg.channel.send("I see you asked for help!")
         await msg.channel.send("You can ask for the following categories:")
         await msg.channel.send(f"{valid_categories}")
@@ -44,18 +51,19 @@ async def bot_joke(msg, joke_pause=3):
 
     # Get the joke
     jokes = jokeapi.Jokes()
-    joke = jokes.get_joke(lang='en', category=categories)
-    logging.info("User %s requested joke of category %s",
-                 msg.author, categories)
+    joke = jokes.get_joke(lang="en", category=categories)
+    logging.info(
+        "User %s requested joke of category %s", msg.author, categories
+    )
     logging.info("The joke is: %s", joke)
 
     # Joke can be one-liner or has setup
-    if joke['type'] == 'single':
-        await msg.channel.send(joke['joke'])
+    if joke["type"] == "single":
+        await msg.channel.send(joke["joke"])
     else:
-        await msg.channel.send(joke['setup'])
+        await msg.channel.send(joke["setup"])
         time.sleep(joke_pause)
-        await msg.channel.send(joke['delivery'])
+        await msg.channel.send(joke["delivery"])
 
 
 class MusicBot(discord.Client):
@@ -67,32 +75,32 @@ class MusicBot(discord.Client):
 
     @_discord_helper.event
     async def on_ready(self):
-        """ Login and loading handling """
+        """Login and loading handling"""
         logging.info("we have logged in as %s", self.user)
 
     @_discord_helper.event
     async def on_message(self, message):
-        """ Handler for receiving messages """
+        """Handler for receiving messages"""
         if message.author == self.user:
             return
-        if message.content.startswith('!hello'):
-            await message.channel.send('Hello!')
-        if message.content.startswith('!joke'):
+        if message.content.startswith("!hello"):
+            await message.channel.send("Hello!")
+        if message.content.startswith("!joke"):
             await bot_joke(message)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Starting Discord bot")
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    token = os.getenv('TOKEN')
+    token = os.getenv("TOKEN")
     if token is None:
         config = configparser.ConfigParser()
         config.read("bot.conf")
-        token = config['secrets']['TOKEN']
+        token = config["secrets"]["TOKEN"]
 
     logging.info("Starting bot")
     MusicBot().run(token)

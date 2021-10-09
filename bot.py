@@ -44,7 +44,7 @@ async def bot_joke(msg, joke_pause=3):
 
     # Get the joke
     jokes = jokeapi.Jokes()
-    joke = jokes.get_joke(category=categories)
+    joke = jokes.get_joke(lang='en', category=categories)
     logging.info("User %s requested joke of category %s",
                  msg.author, categories)
     logging.info("The joke is: %s", joke)
@@ -77,6 +77,8 @@ class MusicBot(discord.Client):
             return
         if message.content.startswith('!hello'):
             await message.channel.send('Hello!')
+        if message.content.startswith('!joke'):
+            await bot_joke(message)
 
 
 if __name__ == '__main__':

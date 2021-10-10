@@ -11,6 +11,10 @@ import asyncio
 
 import discord  # pylint: disable=import-error
 
+import queue
+import pafy
+from youtubesearchpython import VideosSearch
+
 
 class MusicBot(discord.Client):
     """
@@ -25,6 +29,9 @@ class MusicBot(discord.Client):
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
         self.register_command("dinkster", handler=self.dinkster)
+
+        self.voice_client = None
+        self.song_queue = queue.Queue()
 
         super().__init__()
 
@@ -96,6 +103,32 @@ class MusicBot(discord.Client):
                 voice_client.play(audio_source)
                 await asyncio.sleep(10)
                 await voice_client.disconnect()
+
+    async def play(self, message, command_content):
+        video_metadata = None
+
+        #This looks pretty ugly
+        try:
+            video_metadata = pafy.new(command_content)
+        except ValueError as e:
+            search_result = VideosSearch(command_content).result()
+            video_metadata = pafy.new(search_result["result"][0]["id"])
+
+        audio_url = video_metadata.getbestaudio().url
+
+        if(self.voice_client is None):
+            self.voice_client = await message.author.voice.channel.connect()
+
+        if(self.voice_client.is_playing()):
+            self.voice_client.stop()
+
+        audio_source = discord.FFmpegPCMAudio(audio_url)
+        self.voice_client.play(audio_source)
+        await asyncio.sleep(10)
+
+
+    async def skip(self, message, command_content):
+        pass
 
     _discord_helper = discord.Client()
 

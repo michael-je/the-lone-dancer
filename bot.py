@@ -90,7 +90,9 @@ class MusicBot(discord.Client):
         for channel in await message.guild.fetch_channels():
             if isinstance(channel, discord.VoiceChannel):
                 voice_client = await channel.connect()
-                audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
+                audio_source = await discord.FFmpegOpusAudio.from_probe(
+                    "Dinkster.ogg"
+                )
                 voice_client.play(audio_source)
                 await asyncio.sleep(10)
                 await voice_client.disconnect()
@@ -115,7 +117,9 @@ class MusicBot(discord.Client):
             # Message not attempting to be a command.
             return
 
-        handler, command_content, error_msg = self.get_command_handler(message.content)
+        handler, command_content, error_msg = self.get_command_handler(
+            message.content
+        )
 
         # The command was not recognized
         if error_msg:

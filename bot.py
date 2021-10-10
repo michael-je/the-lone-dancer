@@ -29,6 +29,10 @@ class MusicBot(discord.Client):
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
         self.register_command("dinkster", handler=self.dinkster)
+        self.register_command("play", handler=self.play)
+        self.register_command("stop", handler=self.stop)
+        self.register_command("pause", handler=self.pause)
+        self.register_command("resume", handler=self.resume)
 
         self.voice_client = None
         self.song_queue = queue.Queue()
@@ -97,9 +101,7 @@ class MusicBot(discord.Client):
         for channel in await message.guild.fetch_channels():
             if isinstance(channel, discord.VoiceChannel):
                 voice_client = await channel.connect()
-                audio_source = await discord.FFmpegOpusAudio.from_probe(
-                    "Dinkster.ogg"
-                )
+                audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
                 voice_client.play(audio_source)
                 await asyncio.sleep(10)
                 await voice_client.disconnect()
@@ -107,7 +109,7 @@ class MusicBot(discord.Client):
     async def play(self, message, command_content):
         video_metadata = None
 
-        #This looks pretty ugly
+        # This looks pretty ugly
         try:
             video_metadata = pafy.new(command_content)
         except ValueError as e:
@@ -116,16 +118,27 @@ class MusicBot(discord.Client):
 
         audio_url = video_metadata.getbestaudio().url
 
-        if(self.voice_client is None):
+        if self.voice_client is None:
             self.voice_client = await message.author.voice.channel.connect()
 
-        if(self.voice_client.is_playing()):
+        if self.voice_client.is_playing():
             self.voice_client.stop()
 
         audio_source = discord.FFmpegPCMAudio(audio_url)
         self.voice_client.play(audio_source)
         await asyncio.sleep(10)
 
+    async def stop(self, message, command_content):
+        if self.voice_client:
+            self.voice_client.stop()
+
+    async def pause(self, message, command_content):
+        if self.voice_client:
+            self.voice_client.pause()
+
+    async def resume(self, message, command_content):
+        if self.voice_client:
+            self.voice_client.resume()
 
     async def skip(self, message, command_content):
         pass
@@ -150,9 +163,7 @@ class MusicBot(discord.Client):
             # Message not attempting to be a command.
             return
 
-        handler, command_content, error_msg = self.get_command_handler(
-            message.content
-        )
+        handler, command_content, error_msg = self.get_command_handler(message.content)
 
         # The command was not recognized
         if error_msg:

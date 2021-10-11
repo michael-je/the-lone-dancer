@@ -8,8 +8,10 @@ import os
 import configparser
 import logging
 import asyncio
+import time
 
 import discord  # pylint: disable=import-error
+import jokeapi  # pylint: disable=import-error
 
 
 class MusicBot(discord.Client):
@@ -25,6 +27,7 @@ class MusicBot(discord.Client):
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
         self.register_command("dinkster", handler=self.dinkster)
+        self.register_command("joke", handler=self.joke)
 
         super().__init__()
 
@@ -96,6 +99,71 @@ class MusicBot(discord.Client):
                 voice_client.play(audio_source)
                 await asyncio.sleep(10)
                 await voice_client.disconnect()
+
+    async def joke(self, message, command_content, joke_pause=3):
+        """
+        Reply to the author with joke from Sv443's Joke API
+
+        If the joke is two-parter wait `joke_pause` seconds between setup and
+        delivery.
+        """
+        logging.info("Making jokes: %s", message.content)
+        argv = command_content.split()
+
+        valid_categories = set(
+            [
+                "any",
+                "misc",
+                "programming",
+                "dark",
+                "pun",
+                "spooky",
+                "christmas",
+            ]
+        )
+        # Setup complete
+
+        # User asks for help
+        if "help" in argv or "-h" in argv or "--help" in argv:
+            await message.channel.send("I see you asked for help!")
+            await message.channel.send("You can ask for the following categories:")
+            await message.channel.send(f"{', '.join(valid_categories)}")
+            return
+
+        # User asks for categories
+        categories = set(cat.lower() for cat in argv)
+        invalid_categories = categories - valid_categories
+        logging.info("Invalid categories: %s", invalid_categories)
+        category_plurality = (
+            "categories" if len(invalid_categories) > 1 else "category"
+        )
+        if len(invalid_categories) > 0:
+            await message.channel.send(
+                f"Invalid joke {category_plurality} "
+                f"'{', '.join(invalid_categories)}'"
+            )
+            logging.info(
+                "User %s requested invalid joke category %s",
+                message.author,
+                invalid_categories,
+            )
+            return
+
+        # Get the joke
+        jokes = jokeapi.Jokes()
+        joke = jokes.get_joke(lang="en", category=categories)
+        logging.info(
+            "User %s requested joke of category %s", message.author, categories
+        )
+        logging.info("The joke is: %s", joke)
+
+        # Joke can be one-liner or has setup
+        if joke["type"] == "single":
+            await message.channel.send(joke["joke"])
+        else:
+            await message.channel.send(joke["setup"])
+            time.sleep(joke_pause)
+            await message.channel.send(joke["delivery"])
 
     _discord_helper = discord.Client()
 

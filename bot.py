@@ -8,7 +8,6 @@ import os
 import configparser
 import logging
 import asyncio
-import time
 
 import discord  # pylint: disable=import-error
 import jokeapi  # pylint: disable=import-error
@@ -162,7 +161,7 @@ class MusicBot(discord.Client):
             await message.channel.send(joke["joke"])
         else:
             await message.channel.send(joke["setup"])
-            time.sleep(joke_pause)
+            await asyncio.sleep(joke_pause)
             await message.channel.send(joke["delivery"])
 
     _discord_helper = discord.Client()

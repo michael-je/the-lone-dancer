@@ -20,19 +20,21 @@ async def bot_joke(msg, joke_pause=3):
     If the joke is two-parter wait `joke_pause` seconds between setup and
     delivery.
     """
-    logging.info("Making jokes: %s", msg)
+    logging.info("Making jokes: %s", msg.content)
     content = msg.content
     argv = [] if len(content.split()) < 2 else content.split()[1:]
 
-    valid_categories = [
-        "any",
-        "misc",
-        "programming",
-        "dark",
-        "pun",
-        "spooky",
-        "christmas",
-    ]
+    valid_categories = set(
+        [
+            "any",
+            "misc",
+            "programming",
+            "dark",
+            "pun",
+            "spooky",
+            "christmas",
+        ]
+    )
     # Setup complete
 
     # User asks for help
@@ -43,14 +45,16 @@ async def bot_joke(msg, joke_pause=3):
         return
 
     # User asks for categories
-    categories = [cat.lower() for cat in argv]
-    invalid_categories = set(argv) - set(categories)
+    categories = set(cat.lower() for cat in argv)
+    invalid_categories = categories - valid_categories
+    logging.info("Invalid categories: %s", invalid_categories)
     category_plurality = (
         "categories" if len(invalid_categories) > 1 else "category"
     )
     if len(invalid_categories) > 0:
         await msg.channel.send(
-            f"Invalid joke {category_plurality} '{invalid_categories}'"
+            f"Invalid joke {category_plurality} "
+            f"'{', '.join(invalid_categories)}'"
         )
         logging.info(
             "User %s requested invalid joke category %s",

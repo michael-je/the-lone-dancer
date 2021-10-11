@@ -39,15 +39,25 @@ async def bot_joke(msg, joke_pause=3):
     if "help" in argv or "-h" in argv or "--help" in argv:
         await msg.channel.send("I see you asked for help!")
         await msg.channel.send("You can ask for the following categories:")
-        await msg.channel.send(f"{valid_categories}")
+        await msg.channel.send(f"{', '.join(valid_categories)}")
         return
 
     # User asks for categories
-    for category in argv:
-        category = category.lower()
-        if category not in valid_categories:
-            await msg.channel.send(f"Invalid joke category '{category}'")
-    categories = argv
+    categories = [cat.lower() for cat in argv]
+    invalid_categories = set(argv) - set(categories)
+    category_plurality = (
+        "categories" if len(invalid_categories) > 1 else "category"
+    )
+    if len(invalid_categories) > 0:
+        await msg.channel.send(
+            f"Invalid joke {category_plurality} '{invalid_categories}'"
+        )
+        logging.info(
+            "User %s requested invalid joke category %s",
+            msg.author,
+            invalid_categories,
+        )
+        return
 
     # Get the joke
     jokes = jokeapi.Jokes()

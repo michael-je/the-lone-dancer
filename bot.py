@@ -5,6 +5,7 @@ Author MikkMakk88, morgaesis et al.
 """
 
 import os
+import re
 import configparser
 import logging
 import asyncio
@@ -33,11 +34,20 @@ class MusicBot(discord.Client):
         self.register_command("stop", handler=self.stop)
         self.register_command("pause", handler=self.pause)
         self.register_command("resume", handler=self.resume)
+        self.register_command("skip", handler=self.skip)
 
         self.voice_client = None
         self.song_queue = queue.Queue()
+        self.url_regex = re.compile(
+            "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+        )
 
         super().__init__()
+
+    def next_in_queue(self, error):
+        if self.song_queue.empty() == False:
+            self.voice_client.stop()
+            self.voice_client.play(self.song_queue.get(), after=self.next_in_queue)
 
     def register_command(self, command_name, handler=None):
         """Register a command with the name 'command_name'.
@@ -109,24 +119,27 @@ class MusicBot(discord.Client):
     async def play(self, message, command_content):
         video_metadata = None
 
-        # This looks pretty ugly
-        try:
+        if self.url_regex.match(command_content):
             video_metadata = pafy.new(command_content)
-        except ValueError as e:
+        else:
             search_result = VideosSearch(command_content).result()
             video_metadata = pafy.new(search_result["result"][0]["id"])
 
+        print("pafy found:")
+        print(str(video_metadata))
         audio_url = video_metadata.getbestaudio().url
 
         if self.voice_client is None:
             self.voice_client = await message.author.voice.channel.connect()
 
-        if self.voice_client.is_playing():
-            self.voice_client.stop()
-
         audio_source = discord.FFmpegPCMAudio(audio_url)
-        self.voice_client.play(audio_source)
-        await asyncio.sleep(10)
+
+        if self.voice_client.is_playing():
+            self.song_queue.put(audio_source)
+            await message.channel.send("Added to Queue: " + video_metadata.title)
+        else:
+            self.voice_client.play(audio_source, after=self.next_in_queue)
+            await message.channel.send("Now Playing: " + video_metadata.title)
 
     async def stop(self, message, command_content):
         if self.voice_client:
@@ -141,7 +154,7 @@ class MusicBot(discord.Client):
             self.voice_client.resume()
 
     async def skip(self, message, command_content):
-        pass
+        self.next_in_queue(None)
 
     _discord_helper = discord.Client()
 

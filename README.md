@@ -13,7 +13,7 @@ This project is still in development. The goal is to create a simple music playi
 
 ---
 ## Main features
-- Accepts links and search terms for audo streaming
+- Accepts links and search terms for audio streaming
 - Play, pause, skip, scrub, queue, and more!
 - Stream the audio into the voice channel you're in 🎶
 

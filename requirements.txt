@@ -8,3 +8,5 @@ idna==3.2
 multidict==5.2.0
 typing-extensions==3.10.0.2
 yarl==1.6.3
+pafy==0.5.5
+youtube-search-python==1.4.9

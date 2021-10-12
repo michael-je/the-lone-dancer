@@ -25,6 +25,8 @@ class MusicBot(discord.Client):
     The main bot functionality
     """
 
+    # pylint: disable=no-self-use
+
     COMMAND_PREFIX = "!"
 
     def __init__(self):

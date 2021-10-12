@@ -156,6 +156,14 @@ class MusicBot(discord.Client):
 
         if self.voice_client is None:
             self.voice_client = await message.author.voice.channel.connect()
+            await self.voice_client.guild.change_voice_state(
+                channel=message.author.voice.channel, self_deaf=True
+            )
+            voice_states = self.voice_client.channel.voice_states
+            await asyncio.sleep(1)
+            logging.info(
+                "Bot is deafened: %s", voice_states[self.voice_client.user.id].self_deaf
+            )
 
         audio_source = discord.FFmpegPCMAudio(audio_url)
 

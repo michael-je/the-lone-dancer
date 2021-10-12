@@ -4,16 +4,18 @@ Author MikkMakk88, morgaesis et al.
 (c)2021
 """
 
+# pylint: disable=import-error
+
+
 import os
 import re
 import configparser
 import logging
 import asyncio
-
-import discord  # pylint: disable=import-error
-import jokeapi  # pylint: disable=import-error
-
 import queue
+
+import discord
+import jokeapi
 import pafy
 from youtubesearchpython import VideosSearch
 
@@ -30,7 +32,8 @@ class MusicBot(discord.Client):
         self.voice_client = None
         self.song_queue = queue.Queue()
         self.url_regex = re.compile(
-            "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+            r"http[s]?://"
+            r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
 
         self.register_command("play", handler=self.play)
@@ -62,21 +65,31 @@ class MusicBot(discord.Client):
         self.handlers[command_name] = handler
 
     def get_command_handler(self, message_content):
-        """Tries to parse message_content as a command and fetch the corresponding handler for the command.
+        """Tries to parse message_content as a command and fetch the corresponding
+        handler for the command.
 
-        Arguments:
-          message_content: Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
+        Arguments
+        ---------
+        message_content : discord.message
+            Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
 
-        Returns:
-          handler: Function to handle the command.
-          command_content: The message contents with the prefix and command named stripped.
-          error_msg: String or None. If not None it signals that the command was
-            unknown. The value will be an error message displayable to the user which
-            says the command was not recognized.
+        Returns
+        -------
+        handler : function
+            Function to handle the command.
+
+        command_content : discord.message
+            The message contents with the prefix and command named stripped.
+
+        error_msg : str
+            String or None. If not None it signals that the command was unknown. The
+            value will be an error message displayable to the user which says the
+            command was not recognized.
         """
         if message_content[0] != "!":
             raise ValueError(
-                f"Message '{message_content}' does not begin with '{MusicBot.COMMAND_PREFIX}'"
+                f"Message '{message_content}' does not begin with"
+                f" '{MusicBot.COMMAND_PREFIX}'"
             )
 
         content_split = message_content[1:].split(" ", 1)
@@ -119,12 +132,16 @@ class MusicBot(discord.Client):
         # Execute the command.
         await handler(message, command_content)
 
-    def next_in_queue(self, error):
-        if self.song_queue.empty() == False:
+    def next_in_queue(self, _):
+        """Switch to next song in queue"""
+        if not self.song_queue.empty():
             self.voice_client.stop()
             self.voice_client.play(self.song_queue.get(), after=self.next_in_queue)
 
     async def play(self, message, command_content):
+        """
+        Play URL or first search term from command_content in the author's voice channel
+        """
         video_metadata = None
 
         if self.url_regex.match(command_content):
@@ -133,7 +150,7 @@ class MusicBot(discord.Client):
             search_result = VideosSearch(command_content).result()
             video_metadata = pafy.new(search_result["result"][0]["id"])
 
-        logging.info("Pafy found", self.user)
+        logging.info("Pafy found %s", self.user)
         logging.info(str(video_metadata))
         audio_url = video_metadata.getbestaudio().url
 
@@ -149,25 +166,31 @@ class MusicBot(discord.Client):
             self.voice_client.play(audio_source, after=self.next_in_queue)
             await message.channel.send("Now Playing: " + video_metadata.title)
 
-    async def stop(self, message, command_content):
+    async def stop(self, _message, _command_content):
+        """Stop currently playing song"""
         if self.voice_client:
             self.voice_client.stop()
 
-    async def pause(self, message, command_content):
+    async def pause(self, _message, _command_content):
+        """Pause currently playing song"""
         if self.voice_client:
             self.voice_client.pause()
 
-    async def resume(self, message, command_content):
+    async def resume(self, _message, _command_content):
+        """Resume playing current song"""
         if self.voice_client:
             self.voice_client.resume()
 
-    async def skip(self, message, command_content):
+    async def skip(self, _message, _command_content):
+        """Skip to next song in queue"""
         self.next_in_queue(None)
 
-    async def hello(self, message, command_content):
+    async def hello(self, message, _command_content):
+        """Greet the author with a nice message"""
         await message.channel.send("Hello!")
 
     async def countdown(self, message, command_content):
+        """Count down from 10 and explode"""
         try:
             seconds = int(command_content)
             while seconds > 0:
@@ -178,7 +201,8 @@ class MusicBot(discord.Client):
         except ValueError:
             await message.channel.send(f"{command_content} is not an integer.")
 
-    async def dinkster(self, message, command_content):
+    async def dinkster(self, message, _command_content):
+        """Ring the dinkster in all voice channels"""
         for channel in await message.guild.fetch_channels():
             if isinstance(channel, discord.VoiceChannel):
                 voice_client = await channel.connect()
@@ -221,9 +245,7 @@ class MusicBot(discord.Client):
         categories = set(cat.lower() for cat in argv)
         invalid_categories = categories - valid_categories
         logging.info("Invalid categories: %s", invalid_categories)
-        category_plurality = (
-            "categories" if len(invalid_categories) > 1 else "category"
-        )
+        category_plurality = "categories" if len(invalid_categories) > 1 else "category"
         if len(invalid_categories) > 0:
             await message.channel.send(
                 f"Invalid joke {category_plurality} "

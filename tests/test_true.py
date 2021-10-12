@@ -11,10 +11,10 @@ from bot import MusicBot
 
 @pytest.fixture
 def bot():
-    """ Get a bot.MusicBot instance """
+    """Get a bot.MusicBot instance"""
     return MusicBot()
 
 
 def test_initialization(bot):
-    """ Test the bot is initialized """
+    """Test the bot is initialized"""
     assert bot

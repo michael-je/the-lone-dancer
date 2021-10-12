@@ -125,8 +125,8 @@ class MusicBot(discord.Client):
             search_result = VideosSearch(command_content).result()
             video_metadata = pafy.new(search_result["result"][0]["id"])
 
-        print("pafy found:")
-        print(str(video_metadata))
+        logging.info("Pafy found", self.user)
+        logging.info(str(video_metadata))
         audio_url = video_metadata.getbestaudio().url
 
         if self.voice_client is None:
@@ -140,6 +140,7 @@ class MusicBot(discord.Client):
         else:
             self.voice_client.play(audio_source, after=self.next_in_queue)
             await message.channel.send("Now Playing: " + video_metadata.title)
+
 
     async def stop(self, message, command_content):
         if self.voice_client:

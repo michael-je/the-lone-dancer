@@ -106,7 +106,6 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-
     _discord_helper = discord.Client()
 
     @_discord_helper.event
@@ -148,13 +147,17 @@ class MusicBot(discord.Client):
             loop = self.loop
 
             if self.voice_client.is_playing():
-                #þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem er callable, og þá getum við breytt
-                #hvað gerist þegar kallað er á after, þannig þegar stop trigger-ast þá getum við sleppt því að gera það sem við gerum
-                #venjulega
+                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem er callable, og þá getum við breytt
+                # hvað gerist þegar kallað er á after, þannig þegar stop trigger-ast þá getum við sleppt því að gera það sem við gerum
+                # venjulega
                 self.voice_client.pause()
 
             self.voice_client.play(audio_source, after=self.next_in_queue)
-            loop.create_task(message.channel.send("Now Playing: " + media.title + " - " + media.duration))
+            loop.create_task(
+                message.channel.send(
+                    "Now Playing: " + media.title + " - " + media.duration
+                )
+            )
 
     async def play(self, message, command_content):
         """
@@ -182,8 +185,8 @@ class MusicBot(discord.Client):
                 "Bot is deafened: %s", voice_states[self.voice_client.user.id].self_deaf
             )
 
-        #We queue up a pair of the media metadata and the message context, so we can continue to message
-        #the channel that this command was instanciated from as the queue is unrolled.
+        # We queue up a pair of the media metadata and the message context, so we can continue to message
+        # the channel that this command was instanciated from as the queue is unrolled.
         self.play_ctx_queue.put((media, message))
 
         if self.voice_client.is_playing():
@@ -215,13 +218,13 @@ class MusicBot(discord.Client):
         reply = ""
         items = list(self.play_ctx_queue.queue)
 
-        if(len(items) == 0):
+        if len(items) == 0:
             reply = "No audio in queue."
 
         for i in range(0, len(items)):
-            item = items[i][0]#we only care about the media metadata
-            reply += str(i+1) + ": " + item.title
-            if(i < len(items)-1):
+            item = items[i][0]  # we only care about the media metadata
+            reply += str(i + 1) + ": " + item.title
+            if i < len(items) - 1:
                 reply += "\n"
 
         await message.channel.send(reply)

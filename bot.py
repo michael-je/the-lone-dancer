@@ -53,16 +53,13 @@ class MusicBot(discord.Client):
     def register_command(self, command_name, handler=None):
         """Register a command with the name 'command_name'.
 
-        Arguments
-        ---------
-        command_name : str
-        The name of the command to register. This is
-        what users should use to run the command.
-
-        handler : function
-        This function should accept two arguments: discord.Message and a string. The
-        messageris the message being processed by the handler and command_content is
-        the string contents of the command passed by the user.
+        Arguments:
+          command_name: String. The name of the command to register. This is
+            what users should use to run the command.
+          handler: A function. This function should accept two arguments:
+            discord.Message and a string. The messageris the message being
+            processed by the handler and command_content is the string
+            contents of the command passed by the user.
         """
         assert handler
         assert command_name not in self.handlers
@@ -75,20 +72,20 @@ class MusicBot(discord.Client):
         Arguments
         ---------
         message_content : discord.message
-        Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
+            Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
 
         Returns
         -------
         handler : function
-        Function to handle the command.
+            Function to handle the command.
 
         command_content : discord.message
-        The message contents with the prefix and command named stripped.
+            The message contents with the prefix and command named stripped.
 
         error_msg : str
-        String or None. If not None it signals that the command was unknown. The
-        value will be an error message displayable to the user which says the
-        command was not recognized.
+            String or None. If not None it signals that the command was unknown. The
+            value will be an error message displayable to the user which says the
+            command was not recognized.
         """
         if message_content[0] != "!":
             raise ValueError(

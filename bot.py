@@ -206,7 +206,7 @@ class MusicBot(discord.Client):
                 await message.channel.send(seconds)
                 await asyncio.sleep(1)
                 seconds -= 1
-                await message.channel.send("BOOOM!!!")
+            await message.channel.send("BOOOM!!!")
         except ValueError:
             await message.channel.send(f"{command_content} is not an integer.")
 

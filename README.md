@@ -7,7 +7,12 @@ This project is still in development. The goal is to create a simple music playi
 		
 		python3 -m pip install --no-deps -r requirements.txt
 
-2. Run the bot:
+2. Set `DISCORD_TOKEN` in `.env` using `.env.example` as a base:
+
+		cp .env.example .env
+		$EDITOR .env
+
+3. Run the bot:
 		
 		python3 bot.py
 
@@ -18,10 +23,18 @@ This project is still in development. The goal is to create a simple music playi
 - Stream the audio into the voice channel you're in 🎶
 
 ---
+## Docker build
+Simply build and run the container:
+
+		docker build . -t the-lone-dancer:latest
+		docker run --env-file .env the-lone-dancer
+
+---
 ## Development setup (Linux)
 ### Requirements
-- `python3`
+- `python >= 3.7`
 - `discord.py`
+- `ffmpeg`
 
 ### Setup
 1. Make sure `python3` and `python-pip` are installed. (On Arch-Linux):
@@ -43,8 +56,8 @@ This project is still in development. The goal is to create a simple music playi
 5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
 6. Create a config file using the example:
 		
-		cp bot.conf.example bot.conf
-	Then replace the empty `TOKEN` field with your generated token from the previous step.
+		cp .env.example .env
+	Then replace the empty `DISCORD_TOKEN` field with your generated token from the previous step.
 7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
 8. Run the bot:
 

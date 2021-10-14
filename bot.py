@@ -9,7 +9,6 @@ Author MikkMakk88, morgaesis et al.
 
 import os
 import re
-import configparser
 import logging
 import asyncio
 import queue
@@ -54,13 +53,16 @@ class MusicBot(discord.Client):
     def register_command(self, command_name, handler=None):
         """Register a command with the name 'command_name'.
 
-        Arguments:
-          command_name: String. The name of the command to register. This is
-            what users should use to run the command.
-          handler: A function. This function should accept two arguments:
-            discord.Message and a string. The messageris the message being
-            processed by the handler and command_content is the string
-            contents of the command passed by the user.
+        Arguments
+        ---------
+        command_name : str
+        The name of the command to register. This is
+        what users should use to run the command.
+
+        handler : function
+        This function should accept two arguments: discord.Message and a string. The
+        messageris the message being processed by the handler and command_content is
+        the string contents of the command passed by the user.
         """
         assert handler
         assert command_name not in self.handlers
@@ -73,20 +75,20 @@ class MusicBot(discord.Client):
         Arguments
         ---------
         message_content : discord.message
-            Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
+        Contents of the message to parse. Assumed to start with COMMAND_PREFIX.
 
         Returns
         -------
         handler : function
-            Function to handle the command.
+        Function to handle the command.
 
         command_content : discord.message
-            The message contents with the prefix and command named stripped.
+        The message contents with the prefix and command named stripped.
 
         error_msg : str
-            String or None. If not None it signals that the command was unknown. The
-            value will be an error message displayable to the user which says the
-            command was not recognized.
+        String or None. If not None it signals that the command was unknown. The
+        value will be an error message displayable to the user which says the
+        command was not recognized.
         """
         if message_content[0] != "!":
             raise ValueError(
@@ -207,7 +209,7 @@ class MusicBot(discord.Client):
                 await message.channel.send(seconds)
                 await asyncio.sleep(1)
                 seconds -= 1
-            await message.channel.send("BOOOM!!!")
+                await message.channel.send("BOOOM!!!")
         except ValueError:
             await message.channel.send(f"{command_content} is not an integer.")
 
@@ -292,11 +294,15 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    token = os.getenv("TOKEN")
+    token = os.getenv("DISCORD_TOKEN")
     if token is None:
-        config = configparser.ConfigParser()
-        config.read("bot.conf")
-        token = config["secrets"]["TOKEN"]
+        with open(".env", "r", encoding="utf-8") as env_file:
+            for line in env_file.readlines():
+                match = re.search(r"^DISCORD_TOKEN=(.*)", line)
+                if match is not None:
+                    logging.info("Found token in file '.env'")
+                    token = match.group(1).strip()
+    assert token is not None
 
     logging.info("Starting bot")
     MusicBot().run(token)

@@ -1,7 +1,7 @@
 /dev
 /venv
 bot.conf
-/__pycache__
+__pycache__
 secrets.py
 
 // ViM files

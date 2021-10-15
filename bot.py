@@ -9,7 +9,6 @@ Author MikkMakk88, morgaesis et al.
 
 import os
 import re
-import configparser
 import logging
 import asyncio
 import queue
@@ -292,11 +291,15 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    token = os.getenv("TOKEN")
+    token = os.getenv("DISCORD_TOKEN")
     if token is None:
-        config = configparser.ConfigParser()
-        config.read("bot.conf")
-        token = config["secrets"]["TOKEN"]
+        with open(".env", "r", encoding="utf-8") as env_file:
+            for line in env_file.readlines():
+                match = re.search(r"^DISCORD_TOKEN=(.*)", line)
+                if match is not None:
+                    logging.info("Found token in file '.env'")
+                    token = match.group(1).strip()
+    assert token is not None
 
     logging.info("Starting bot")
     MusicBot().run(token)

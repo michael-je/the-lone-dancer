@@ -19,7 +19,6 @@ import jokeapi
 import pafy
 from youtubesearchpython import VideosSearch
 
-
 class MusicBot(discord.Client):
     """
     The main bot functionality
@@ -33,6 +32,7 @@ class MusicBot(discord.Client):
         self.handlers = {}
         self.voice_client = None
         self.play_ctx_queue = queue.Queue()
+        self.block_after = False
         self.url_regex = re.compile(
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
@@ -135,7 +135,17 @@ class MusicBot(discord.Client):
         # Execute the command.
         await handler(message, command_content)
 
-    def next_in_queue(self, _):
+    def _stop(self):
+        self.block_after = True
+        self.voice_client.stop()
+
+    def after_callback(self, error):
+        if not self.block_after:
+            self.next_in_queue()
+        else:
+            self.block_after = False
+
+    def next_in_queue(self):
         """Switch to next song in queue"""
         if self.play_ctx_queue.empty() == False:
             cmd_ctx = self.play_ctx_queue.get()
@@ -147,12 +157,9 @@ class MusicBot(discord.Client):
             loop = self.loop
 
             if self.voice_client.is_playing():
-                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem er callable, og þá getum við breytt
-                # hvað gerist þegar kallað er á after, þannig þegar stop trigger-ast þá getum við sleppt því að gera það sem við gerum
-                # venjulega
-                self.voice_client.pause()
+                self._stop()
 
-            self.voice_client.play(audio_source, after=self.next_in_queue)
+            self.voice_client.play(audio_source, after=self.after_callback)
             loop.create_task(
                 message.channel.send(
                     "Now Playing: " + media.title + " - " + media.duration
@@ -192,12 +199,12 @@ class MusicBot(discord.Client):
         if self.voice_client.is_playing():
             await message.channel.send("Added to Queue: " + media.title)
         else:
-            self.next_in_queue(None)
+            self.next_in_queue()
 
     async def stop(self, _message, _command_content):
         """Stop currently playing song"""
         if self.voice_client:
-            self.voice_client.stop()
+            self._stop()
 
     async def pause(self, _message, _command_content):
         """Pause currently playing song"""
@@ -211,7 +218,11 @@ class MusicBot(discord.Client):
 
     async def skip(self, _message, _command_content):
         """Skip to next song in queue"""
-        self.next_in_queue(None)
+        if self.voice_client:
+            if self.play_ctx_queue.empty():
+                self._stop()
+            else:
+                self.next_in_queue()
 
     async def queue(self, message, command_content):
         """Displays media that has been queued"""

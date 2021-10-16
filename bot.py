@@ -151,9 +151,10 @@ class MusicBot(discord.Client):
 
     def next_in_queue(self, _):
         """Switch to next song in queue"""
+        # FIXME Handle queues
         if not self.song_queue.empty():
             self.voice_client.stop()
-            self.voice_client.play(self.song_queue.get(), after=self.next_in_queue)
+            self.voice_client.play(self.song_queue.get())
 
     async def get_voice_channel(self, message):
         """
@@ -212,12 +213,10 @@ class MusicBot(discord.Client):
         audio_source = discord.FFmpegPCMAudio(audio_url)
 
         if voice_client.is_playing():
-            song_queue = self.get_song_queue(message)
+            song_queue = queue.Queue()  # FIXME handle queues
             song_queue.put(audio_source)
         else:
-            voice_client.play(
-                audio_source, after=MusicBot.QueueHandler(voice_client, message.guild)
-            )
+            voice_client.play(audio_source)
 
     async def stop(self, message, _command_content):
         """Stop currently playing song"""

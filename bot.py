@@ -27,6 +27,7 @@ class MusicBot(discord.Client):
     # pylint: disable=no-self-use
 
     COMMAND_PREFIX = "!"
+    _discord_helper = discord.Client()
 
     def __init__(self):
         self.handlers = {}
@@ -47,6 +48,23 @@ class MusicBot(discord.Client):
         self.register_command("countdown", handler=self.countdown)
         self.register_command("dinkster", handler=self.dinkster)
         self.register_command("joke", handler=self.joke)
+
+        async def connect_deaf(self):
+            logging.info("Connecting to voice channel")
+            voice_client = await self.connect()
+            await voice_client.guild.change_voice_state(
+                channel=self,
+                self_deaf=True,
+            )
+            voice_states = voice_client.channel.voice_states
+            await asyncio.sleep(1)  # Without sleep deafening isn't registered in logs
+            logging.info(
+                "Bot is deafened: %s", voice_states[voice_client.user.id].self_deaf
+            )
+            return voice_client
+
+        discord.VoiceChannel.connect_deaf = connect_deaf
+        logging.info("Added 'connect_deaf' as function to discord.VoiceChannel")
 
         super().__init__()
 
@@ -104,8 +122,6 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-    _discord_helper = discord.Client()
-
     @_discord_helper.event
     async def on_ready(self):
         """Login and loading handling"""
@@ -139,60 +155,92 @@ class MusicBot(discord.Client):
             self.voice_client.stop()
             self.voice_client.play(self.song_queue.get(), after=self.next_in_queue)
 
+    async def get_voice_channel(self, message):
+        """
+        Get voice channel for message author. Complain if author is not in a channel
+        """
+        assert isinstance(message, discord.Message)
+        if message.author.voice is None:
+            await message.channel.send("You are not connected to a voice channel!")
+            return None
+        voice_channel = message.author.voice.channel
+        return voice_channel
+
+    async def get_voice_client(self, message):
+        """
+        Get voice client for message author. Complain if author is not in a channel,
+        connect to author voice client if not yet connected
+        """
+        assert isinstance(message, discord.Message)
+        voice_channel = await self.get_voice_channel(message)
+        if voice_channel is not None:
+            for voice_client in self.voice_clients:
+                if voice_client.guild == message.guild:
+                    logging.info("Self in voice channel")
+                    return voice_client
+            return await voice_channel.connect_deaf()
+        return None
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        video_metadata = None
+        voice_channel = await self.get_voice_channel(message)
+        if voice_channel is None:
+            # Exit early if user is not connected
+            return
 
+        video_metadata = None
         if self.url_regex.match(command_content):
             video_metadata = pafy.new(command_content)
         else:
             search_result = VideosSearch(command_content).result()
             video_metadata = pafy.new(search_result["result"][0]["id"])
 
-        logging.info("Pafy found %s", self.user)
-        logging.info(str(video_metadata))
+        voice_client = await voice_channel.connect_deaf()
+        if voice_client.is_playing():
+            await message.channel.send(
+                "Added to Queue: \n```\n{title}\n```".format(title=video_metadata.title)
+            )
+        else:
+            await message.channel.send(
+                "Now Playing: \n```\n{title}\n```".format(title=video_metadata.title)
+            )
+
+        logging.info("Pafy found %s", video_metadata)
         audio_url = video_metadata.getbestaudio().url
-
-        if self.voice_client is None:
-            self.voice_client = await message.author.voice.channel.connect()
-            await self.voice_client.guild.change_voice_state(
-                channel=message.author.voice.channel, self_deaf=True
-            )
-            voice_states = self.voice_client.channel.voice_states
-            await asyncio.sleep(1)
-            logging.info(
-                "Bot is deafened: %s", voice_states[self.voice_client.user.id].self_deaf
-            )
-
         audio_source = discord.FFmpegPCMAudio(audio_url)
 
-        if self.voice_client.is_playing():
-            self.song_queue.put(audio_source)
-            await message.channel.send("Added to Queue: " + video_metadata.title)
+        if voice_client.is_playing():
+            song_queue = self.get_song_queue(message)
+            song_queue.put(audio_source)
         else:
-            self.voice_client.play(audio_source, after=self.next_in_queue)
-            await message.channel.send("Now Playing: " + video_metadata.title)
+            voice_client.play(
+                audio_source, after=MusicBot.QueueHandler(voice_client, message.guild)
+            )
 
-    async def stop(self, _message, _command_content):
+    async def stop(self, message, _command_content):
         """Stop currently playing song"""
-        if self.voice_client:
-            self.voice_client.stop()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.stop()
 
-    async def pause(self, _message, _command_content):
+    async def pause(self, message, _command_content):
         """Pause currently playing song"""
-        if self.voice_client:
-            self.voice_client.pause()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.pause()
 
-    async def resume(self, _message, _command_content):
+    async def resume(self, message, _command_content):
         """Resume playing current song"""
-        if self.voice_client:
-            self.voice_client.resume()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.resume()
 
-    async def skip(self, _message, _command_content):
+    async def skip(self, message, _command_content):
         """Skip to next song in queue"""
-        self.next_in_queue(None)
+        voice_client = await self.get_voice_client(message)
+        MusicBot.QueueHandler(voice_client, message.guild)()
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""

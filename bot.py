@@ -26,7 +26,7 @@ class MusicBot(discord.Client):
 
     # pylint: disable=no-self-use
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "="
 
     def __init__(self):
         self.handlers = {}
@@ -89,7 +89,7 @@ class MusicBot(discord.Client):
             value will be an error message displayable to the user which says the
             command was not recognized.
         """
-        if message_content[0] != "!":
+        if message_content[0] != self.COMMAND_PREFIX:
             raise ValueError(
                 f"Message '{message_content}' does not begin with"
                 f" '{MusicBot.COMMAND_PREFIX}'"
@@ -145,8 +145,8 @@ class MusicBot(discord.Client):
 
     def after_callback(self, _):
         """
-        Goes to the next item in queue if the callback was triggered after a media finished
-        playing normally (i.e. not from voice_client.stop())
+        Plays the next item in queue if block_after == False, otherwise stops the music.
+        Used as a callback for play().
         """
         if not self.block_after:
             self.next_in_queue()

@@ -32,7 +32,7 @@ class MusicBot(discord.Client):
     def __init__(self):
         self.handlers = {}
         self.voice_client = None
-        self.song_queue = queue.Queue()
+        self.play_ctx_queue = queue.Queue()
         self.url_regex = re.compile(
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
@@ -43,6 +43,7 @@ class MusicBot(discord.Client):
         self.register_command("pause", handler=self.pause)
         self.register_command("resume", handler=self.resume)
         self.register_command("skip", handler=self.skip)
+        self.register_command("queue", handler=self.queue)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -151,10 +152,28 @@ class MusicBot(discord.Client):
 
     def next_in_queue(self, _):
         """Switch to next song in queue"""
-        # FIXME Handle queues
-        if not self.song_queue.empty():
-            self.voice_client.stop()
-            self.voice_client.play(self.song_queue.get())
+        if self.play_ctx_queue.empty():
+            cmd_ctx = self.play_ctx_queue.get()
+            media = cmd_ctx[0]
+            message = cmd_ctx[1]
+            audio_url = media.getbestaudio().url
+            audio_source = discord.FFmpegPCMAudio(audio_url)
+
+            loop = self.loop
+
+            if self.voice_client.is_playing():
+                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem
+                # er callable, og þá getum við breytt hvað gerist þegar kallað er á
+                # after, þannig þegar stop trigger-ast þá getum við sleppt því að gera
+                # það sem við gerum venjulega
+                self.voice_client.pause()
+
+            self.voice_client.play(audio_source, after=self.next_in_queue)
+            loop.create_task(
+                message.channel.send(
+                    "Now Playing: " + media.title + " - " + media.duration
+                )
+            )
 
     async def get_voice_channel(self, message):
         """
@@ -190,13 +209,14 @@ class MusicBot(discord.Client):
         if voice_channel is None:
             # Exit early if user is not connected
             return
+        media = None
 
         video_metadata = None
         if self.url_regex.match(command_content):
-            video_metadata = pafy.new(command_content)
+            media = pafy.new(command_content)
         else:
             search_result = VideosSearch(command_content).result()
-            video_metadata = pafy.new(search_result["result"][0]["id"])
+            media = pafy.new(search_result["result"][0]["id"])
 
         voice_client = await voice_channel.connect_deaf()
         if voice_client.is_playing():
@@ -209,14 +229,16 @@ class MusicBot(discord.Client):
             )
 
         logging.info("Pafy found %s", video_metadata)
-        audio_url = video_metadata.getbestaudio().url
-        audio_source = discord.FFmpegPCMAudio(audio_url)
+
+        # We queue up a pair of the media metadata and the message context, so we can
+        # continue to message the channel that this command was instanciated from as the
+        # queue is unrolled.
+        self.play_ctx_queue.put((media, message))
 
         if voice_client.is_playing():
-            song_queue = queue.Queue()  # FIXME handle queues
-            song_queue.put(audio_source)
+            await message.channel.send("Added to Queue: " + media.title)
         else:
-            voice_client.play(audio_source)
+            self.next_in_queue(None)
 
     async def stop(self, message, _command_content):
         """Stop currently playing song"""
@@ -236,10 +258,25 @@ class MusicBot(discord.Client):
         if voice_client:
             voice_client.resume()
 
-    async def skip(self, message, _command_content):
+    async def skip(self, _message, _command_content):
         """Skip to next song in queue"""
-        voice_client = await self.get_voice_client(message)
-        MusicBot.QueueHandler(voice_client, message.guild)()
+        self.next_in_queue(None)
+
+    async def queue(self, message, _command_content):
+        """Displays media that has been queued"""
+        reply = ""
+        items = list(self.play_ctx_queue.queue)
+
+        if len(items) == 0:
+            reply = "No audio in queue."
+
+        for i in range(0, len(items)):  # pylint: disable=consider-using-enumerate
+            item = items[i][0]  # we only care about the media metadata
+            reply += str(i + 1) + ": " + item.title
+            if i < len(items) - 1:
+                reply += "\n"
+
+        await message.channel.send(reply)
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""

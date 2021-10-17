@@ -26,13 +26,15 @@ class MusicBot(discord.Client):
 
     # pylint: disable=no-self-use
 
-    COMMAND_PREFIX = "="
+    COMMAND_PREFIX = "!"
 
     def __init__(self):
         self.handlers = {}
         self.voice_client = None
         self.play_ctx_queue = queue.Queue()
-        self.block_after = False
+
+        # Boolean to control whether the after callback is called
+        self.after_callback_blocked = False
         self.url_regex = re.compile(
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
@@ -137,21 +139,20 @@ class MusicBot(discord.Client):
 
     def _stop(self):
         """
-        voice_client.stop() triggers the after callback, so we need to set a state so it knows
-        not to go to the next item in queue.
+        A helper function that stops playing music
         """
-        self.block_after = True
+        self.after_callback_blocked = True
         self.voice_client.stop()
 
     def after_callback(self, _):
         """
-        Plays the next item in queue if block_after == False, otherwise stops the music.
+        Plays the next item in queue if after_callback_blocked == False, otherwise stops the music.
         Used as a callback for play().
         """
-        if not self.block_after:
+        if not self.after_callback_blocked:
             self.next_in_queue()
         else:
-            self.block_after = False
+            self.after_callback_blocked = False
 
     def next_in_queue(self):
         """Switch to next song in queue"""
@@ -186,8 +187,7 @@ class MusicBot(discord.Client):
             search_result = VideosSearch(command_content).result()
             media = pafy.new(search_result["result"][0]["id"])
 
-        logging.info("Pafy found", str(self.user))
-        logging.info(str(media))
+        logging.info("Media found:\n%s", media)
 
         if self.voice_client is None:
             self.voice_client = await message.author.voice.channel.connect()
@@ -235,20 +235,13 @@ class MusicBot(discord.Client):
 
     async def queue(self, message, command_content):
         """Displays media that has been queued"""
-        reply = ""
         items = list(self.play_ctx_queue.queue)
 
         if len(items) == 0:
-            reply = "No audio in queue."
-
-        # I am not going to use enumerate because pylint wants me to.
-        for i in range(0, len(items)):
-            item = items[i][0]  # we only care about the media metadata
-            reply += str(i + 1) + ": " + item.title
-            if i < len(items) - 1:
-                reply += "\n"
-
-        await message.channel.send(reply)
+            await message.channel.send("No audio in queue.")
+        else:
+            lines = [f"{i+1}: {item[0].title}" for i, item in enumerate(items)]
+            await message.channel.send("\n".join(lines))
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""

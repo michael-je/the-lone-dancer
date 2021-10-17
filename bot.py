@@ -162,7 +162,9 @@ class MusicBot(discord.Client):
         """
         Get voice channel for message author. Complain if author is not in a channel
         """
-        assert isinstance(message, discord.Message)
+        if not isinstance(message, discord.Message):
+            logging.error("message is not of type discord.Message!")
+            return None
         if message.author.voice is None:
             await message.channel.send("You are not connected to a voice channel!")
             return None
@@ -174,15 +176,17 @@ class MusicBot(discord.Client):
         Get voice client for message author. Complain if author is not in a channel,
         connect to author voice client if not yet connected
         """
-        assert isinstance(message, discord.Message)
+        if not isinstance(message, discord.Message):
+            logging.error("message is not of type discord.Message!")
+            return None
         voice_channel = await self.get_voice_channel(message)
-        if voice_channel is not None:
-            for voice_client in self.voice_clients:
-                if voice_client.guild == message.guild:
-                    logging.info("Self in voice channel")
-                    return voice_client
-            return await self.connect_deaf(voice_channel)
-        return None
+        if voice_channel is None:
+            return None
+        for voice_client in self.voice_clients:
+            if voice_client.guild == message.guild:
+                logging.info("Self in voice channel")
+                return voice_client
+        return await self.connect_deaf(voice_channel)
 
     async def connect_deaf(self, channel):
         """Connect to channel self-deafened, the connected voice client"""

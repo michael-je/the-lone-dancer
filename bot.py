@@ -221,11 +221,11 @@ class MusicBot(discord.Client):
         voice_client = await voice_channel.connect_deaf()
         if voice_client.is_playing():
             await message.channel.send(
-                "Added to Queue: \n```\n{title}\n```".format(title=video_metadata.title)
+                f"Added to Queue: \n```\n{video_metadata.title}\n```"
             )
         else:
             await message.channel.send(
-                "Now Playing: \n```\n{title}\n```".format(title=video_metadata.title)
+                f"Now Playing: \n```\n{video_metadata.title}\n```"
             )
 
         logging.info("Pafy found %s", video_metadata)

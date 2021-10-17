@@ -50,23 +50,6 @@ class MusicBot(discord.Client):
         self.register_command("dinkster", handler=self.dinkster)
         self.register_command("joke", handler=self.joke)
 
-        async def connect_deaf(self):
-            logging.info("Connecting to voice channel")
-            voice_client = await self.connect()
-            await voice_client.guild.change_voice_state(
-                channel=self,
-                self_deaf=True,
-            )
-            voice_states = voice_client.channel.voice_states
-            await asyncio.sleep(1)  # Without sleep deafening isn't registered in logs
-            logging.info(
-                "Bot is deafened: %s", voice_states[voice_client.user.id].self_deaf
-            )
-            return voice_client
-
-        discord.VoiceChannel.connect_deaf = connect_deaf
-        logging.info("Added 'connect_deaf' as function to discord.VoiceChannel")
-
         super().__init__()
 
     def register_command(self, command_name, handler=None):
@@ -198,8 +181,23 @@ class MusicBot(discord.Client):
                 if voice_client.guild == message.guild:
                     logging.info("Self in voice channel")
                     return voice_client
-            return await voice_channel.connect_deaf()
+            return await self.connect_deaf(voice_channel)
         return None
+
+    async def connect_deaf(self, channel):
+        """Connect to channel self-deafened, the connected voice client"""
+        logging.info("Connecting to voice channel")
+        voice_client = await channel.connect()
+        await voice_client.guild.change_voice_state(
+            channel=channel,
+            self_deaf=True,
+        )
+        voice_states = voice_client.channel.voice_states
+        await asyncio.sleep(1)  # Without sleep deafening isn't registered in logs
+        logging.info(
+            "Bot is deafened: %s", voice_states[voice_client.user.id].self_deaf
+        )
+        return voice_client
 
     async def play(self, message, command_content):
         """
@@ -218,7 +216,7 @@ class MusicBot(discord.Client):
             search_result = VideosSearch(command_content).result()
             media = pafy.new(search_result["result"][0]["id"])
 
-        voice_client = await voice_channel.connect_deaf()
+        voice_client = await self.connect_deaf(voice_channel)
         if voice_client.is_playing():
             await message.channel.send(
                 f"Added to Queue: \n```\n{video_metadata.title}\n```"

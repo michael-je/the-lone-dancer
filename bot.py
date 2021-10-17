@@ -233,7 +233,7 @@ class MusicBot(discord.Client):
             else:
                 self.next_in_queue()
 
-    async def queue(self, message, command_content):
+    async def queue(self, message, _command_content):
         """Displays media that has been queued"""
         items = list(self.play_ctx_queue.queue)
 
@@ -340,6 +340,7 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    # pylint: disable=invalid-name
     token = os.getenv("DISCORD_TOKEN")
     if token is None:
         with open(".env", "r", encoding="utf-8") as env_file:

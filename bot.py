@@ -140,7 +140,7 @@ class MusicBot(discord.Client):
         self.block_after = True
         self.voice_client.stop()
 
-    def after_callback(self, error):
+    def after_callback(self, _):
         if not self.block_after:
             self.next_in_queue()
         else:
@@ -148,7 +148,7 @@ class MusicBot(discord.Client):
 
     def next_in_queue(self):
         """Switch to next song in queue"""
-        if self.play_ctx_queue.empty() == False:
+        if not self.play_ctx_queue.empty():
             cmd_ctx = self.play_ctx_queue.get()
             media = cmd_ctx[0]
             message = cmd_ctx[1]
@@ -193,8 +193,9 @@ class MusicBot(discord.Client):
                 "Bot is deafened: %s", voice_states[self.voice_client.user.id].self_deaf
             )
 
-        # We queue up a pair of the media metadata and the message context, so we can continue to message
-        # the channel that this command was instanciated from as the queue is unrolled.
+        # We queue up a pair of the media metadata and the message context, so we can
+        # continue to message the channel that this command was instanciated from as
+        # the queue is unrolled.
         self.play_ctx_queue.put((media, message))
 
         if self.voice_client.is_playing():
@@ -233,6 +234,7 @@ class MusicBot(discord.Client):
         if len(items) == 0:
             reply = "No audio in queue."
 
+        #I am not going to use enumerate because pylint wants me to.
         for i in range(0, len(items)):
             item = items[i][0]  # we only care about the media metadata
             reply += str(i + 1) + ": " + item.title

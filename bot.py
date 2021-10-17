@@ -136,10 +136,18 @@ class MusicBot(discord.Client):
         await handler(message, command_content)
 
     def _stop(self):
+        """
+        voice_client.stop() triggers the after callback, so we need to set a state so it knows
+        not to go to the next item in queue.
+        """
         self.block_after = True
         self.voice_client.stop()
 
     def after_callback(self, _):
+        """
+        Goes to the next item in queue if the callback was triggered after a media finished
+        playing normally (i.e. not from voice_client.stop())
+        """
         if not self.block_after:
             self.next_in_queue()
         else:
@@ -233,7 +241,7 @@ class MusicBot(discord.Client):
         if len(items) == 0:
             reply = "No audio in queue."
 
-        #I am not going to use enumerate because pylint wants me to.
+        # I am not going to use enumerate because pylint wants me to.
         for i in range(0, len(items)):
             item = items[i][0]  # we only care about the media metadata
             reply += str(i + 1) + ": " + item.title

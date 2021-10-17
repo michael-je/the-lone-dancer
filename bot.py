@@ -19,6 +19,7 @@ import jokeapi
 import pafy
 from youtubesearchpython import VideosSearch
 
+
 class MusicBot(discord.Client):
     """
     The main bot functionality

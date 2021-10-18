@@ -211,35 +211,24 @@ class MusicBot(discord.Client):
         if voice_channel is None:
             # Exit early if user is not connected
             return
-        media = None
 
-        video_metadata = None
+        media = None
         if self.url_regex.match(command_content):
             media = pafy.new(command_content)
         else:
             search_result = VideosSearch(command_content).result()
             media = pafy.new(search_result["result"][0]["id"])
 
-        voice_client = await self.connect_deaf(voice_channel)
-        if voice_client.is_playing():
-            await message.channel.send(
-                f"Added to Queue: \n```\n{video_metadata.title}\n```"
-            )
-        else:
-            await message.channel.send(
-                f"Now Playing: \n```\n{video_metadata.title}\n```"
-            )
-
-        logging.info("Pafy found %s", video_metadata)
-
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
         self.play_ctx_queue.put((media, message))
 
+        voice_client = await self.connect_deaf(voice_channel)
         if voice_client.is_playing():
-            await message.channel.send("Added to Queue: " + media.title)
+            await message.channel.send(f"Added to Queue: \n```\n{media.title}\n```")
         else:
+            await message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
             self.next_in_queue(None)
 
     async def stop(self, message, _command_content):

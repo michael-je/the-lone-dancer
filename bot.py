@@ -27,6 +27,7 @@ class MusicBot(discord.Client):
     # pylint: disable=no-self-use
 
     COMMAND_PREFIX = "!"
+    _discord_helper = discord.Client()
 
     def __init__(self):
         self.handlers = {}
@@ -105,8 +106,6 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-    _discord_helper = discord.Client()
-
     @_discord_helper.event
     async def on_ready(self):
         """Login and loading handling"""
@@ -136,7 +135,7 @@ class MusicBot(discord.Client):
 
     def next_in_queue(self, _):
         """Switch to next song in queue"""
-        if self.play_ctx_queue.empty() == False:
+        if self.play_ctx_queue.empty():
             cmd_ctx = self.play_ctx_queue.get()
             media = cmd_ctx[0]
             message = cmd_ctx[1]
@@ -146,9 +145,10 @@ class MusicBot(discord.Client):
             loop = self.loop
 
             if self.voice_client.is_playing():
-                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem er callable, og þá getum við breytt
-                # hvað gerist þegar kallað er á after, þannig þegar stop trigger-ast þá getum við sleppt því að gera það sem við gerum
-                # venjulega
+                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem
+                # er callable, og þá getum við breytt hvað gerist þegar kallað er á
+                # after, þannig þegar stop trigger-ast þá getum við sleppt því að gera
+                # það sem við gerum venjulega
                 self.voice_client.pause()
 
             self.voice_client.play(audio_source, after=self.next_in_queue)
@@ -158,61 +158,102 @@ class MusicBot(discord.Client):
                 )
             )
 
+    async def get_voice_channel(self, message):
+        """
+        Get voice channel for message author. Complain if author is not in a channel
+        """
+        if not isinstance(message, discord.Message):
+            logging.error("message is not of type discord.Message!")
+            return None
+        if message.author.voice is None:
+            await message.channel.send("You are not connected to a voice channel!")
+            return None
+        voice_channel = message.author.voice.channel
+        return voice_channel
+
+    async def get_voice_client(self, message):
+        """
+        Get voice client for message author. Complain if author is not in a channel,
+        connect to author voice client if not yet connected
+        """
+        if not isinstance(message, discord.Message):
+            logging.error("message is not of type discord.Message!")
+            return None
+        voice_channel = await self.get_voice_channel(message)
+        if voice_channel is None:
+            return None
+        for voice_client in self.voice_clients:
+            if voice_client.guild == message.guild:
+                logging.info("Self in voice channel")
+                return voice_client
+        return await self.connect_deaf(voice_channel)
+
+    async def connect_deaf(self, channel):
+        """Connect to channel self-deafened, the connected voice client"""
+        logging.info("Connecting to voice channel")
+        voice_client = await channel.connect()
+        await voice_client.guild.change_voice_state(
+            channel=channel,
+            self_deaf=True,
+        )
+        voice_states = voice_client.channel.voice_states
+        await asyncio.sleep(1)  # Without sleep deafening isn't registered in logs
+        logging.info(
+            "Bot is deafened: %s", voice_states[voice_client.user.id].self_deaf
+        )
+        return voice_client
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        media = None
+        voice_channel = await self.get_voice_channel(message)
+        if voice_channel is None:
+            # Exit early if user is not connected
+            return
 
+        media = None
         if self.url_regex.match(command_content):
             media = pafy.new(command_content)
         else:
             search_result = VideosSearch(command_content).result()
             media = pafy.new(search_result["result"][0]["id"])
 
-        logging.info("Pafy found", str(self.user))
-        logging.info(str(media))
-
-        if self.voice_client is None:
-            self.voice_client = await message.author.voice.channel.connect()
-            await self.voice_client.guild.change_voice_state(
-                channel=message.author.voice.channel, self_deaf=True
-            )
-            voice_states = self.voice_client.channel.voice_states
-            await asyncio.sleep(1)
-            logging.info(
-                "Bot is deafened: %s", voice_states[self.voice_client.user.id].self_deaf
-            )
-
-        # We queue up a pair of the media metadata and the message context, so we can continue to message
-        # the channel that this command was instanciated from as the queue is unrolled.
+        # We queue up a pair of the media metadata and the message context, so we can
+        # continue to message the channel that this command was instanciated from as the
+        # queue is unrolled.
         self.play_ctx_queue.put((media, message))
 
-        if self.voice_client.is_playing():
-            await message.channel.send("Added to Queue: " + media.title)
+        voice_client = await self.connect_deaf(voice_channel)
+        if voice_client.is_playing():
+            await message.channel.send(f"Added to Queue: \n```\n{media.title}\n```")
         else:
+            await message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
             self.next_in_queue(None)
 
-    async def stop(self, _message, _command_content):
+    async def stop(self, message, _command_content):
         """Stop currently playing song"""
-        if self.voice_client:
-            self.voice_client.stop()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.stop()
 
-    async def pause(self, _message, _command_content):
+    async def pause(self, message, _command_content):
         """Pause currently playing song"""
-        if self.voice_client:
-            self.voice_client.pause()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.pause()
 
-    async def resume(self, _message, _command_content):
+    async def resume(self, message, _command_content):
         """Resume playing current song"""
-        if self.voice_client:
-            self.voice_client.resume()
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            voice_client.resume()
 
     async def skip(self, _message, _command_content):
         """Skip to next song in queue"""
         self.next_in_queue(None)
 
-    async def queue(self, message, command_content):
+    async def queue(self, message, _command_content):
         """Displays media that has been queued"""
         reply = ""
         items = list(self.play_ctx_queue.queue)
@@ -220,7 +261,7 @@ class MusicBot(discord.Client):
         if len(items) == 0:
             reply = "No audio in queue."
 
-        for i in range(0, len(items)):
+        for i in range(0, len(items)):  # pylint: disable=consider-using-enumerate
             item = items[i][0]  # we only care about the media metadata
             reply += str(i + 1) + ": " + item.title
             if i < len(items) - 1:

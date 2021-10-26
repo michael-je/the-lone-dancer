@@ -294,10 +294,13 @@ class MusicBot(discord.Client):
             await message.channel.send("Nothing is playing, and queue is empty")
 
         reply = "\n```"
-        reply += "Now playing:"
+        reply += "Now playing:\n"
         reply += f">> {self.current.title} <<\n"
         if self.queue.empty():
             reply += " -- No audio in queue --\n"
+        else:
+            reply += "Queue:\n"
+            reply += "---\n"
 
         for index, item in enumerate(self.queue.queue):
             media, _ = item  # we only care about the media metadata

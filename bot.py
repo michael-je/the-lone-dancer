@@ -19,6 +19,27 @@ import pafy
 from youtubesearchpython import VideosSearch
 
 
+class BotDispatcher(discord.Client):
+    """Dispatcher for client instances"""
+
+    clients = dict()  # guild -> discord.Client instance
+
+    @discord.Client.event
+    async def on_ready(self):
+        """Login and loading handling"""
+        logging.info("we have logged in as %s", self.user)
+
+    @discord.Client.event
+    async def on_message(self, message):
+        """Login and loading handling"""
+        logging.info(
+            "Received message from %s saying %s", message.author, message.contents
+        )
+        if message.guild not in self.clients:
+            self.clients[message.guild] = MusicBot(message.guild)
+        await self.clients[message.guild].on_message(message)
+
+
 class MusicBot(discord.Client):
     """
     The main bot functionality
@@ -27,9 +48,15 @@ class MusicBot(discord.Client):
     # pylint: disable=no-self-use
 
     COMMAND_PREFIX = "!"
-    _discord_helper = discord.Client()
+    guild = None
+    guild = None
+    handlers = None
+    voice_client = None
+    song_queue = None
+    url_regex = None
 
-    def __init__(self):
+    def __init__(self, guild):
+        self.guild = guild
         self.handlers = {}
         self.voice_client = None
         self.play_ctx_queue = queue.Queue()
@@ -89,13 +116,14 @@ class MusicBot(discord.Client):
             value will be an error message displayable to the user which says the
             command was not recognized.
         """
-        if message_content[0] != "!":
+        if not message_content.startswith(self.COMMAND_PREFIX):
             raise ValueError(
                 f"Message '{message_content}' does not begin with"
                 f" '{MusicBot.COMMAND_PREFIX}'"
             )
 
-        content_split = message_content[1:].split(" ", 1)
+        prefix_end = re.match(self.COMMAND_PREFIX, message_content).end(group=0)
+        content_split = message_content[prefix_end:].split(" ", 1)
         command_name = content_split[0]
         command_content = ""
         if len(content_split) == 2:
@@ -106,12 +134,6 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-    @_discord_helper.event
-    async def on_ready(self):
-        """Login and loading handling"""
-        logging.info("we have logged in as %s", self.user)
-
-    @_discord_helper.event
     async def on_message(self, message):
         """Handler for receiving messages"""
         if message.author == self.user:
@@ -120,7 +142,7 @@ class MusicBot(discord.Client):
         if not message.content:
             return
 
-        if message.content[0] != MusicBot.COMMAND_PREFIX:
+        if not message.content.startswith(self.COMMAND_PREFIX):
             # Message not attempting to be a command.
             return
 
@@ -377,4 +399,4 @@ if __name__ == "__main__":
     assert token is not None
 
     logging.info("Starting bot")
-    MusicBot().run(token)
+    BotDispatcher().run(token)

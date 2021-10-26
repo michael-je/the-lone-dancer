@@ -283,7 +283,7 @@ class MusicBot(discord.Client):
     async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
         reply = ""
-        items = list(self.queue.queue)
+        items = list(self.queue.queue)  # FIXME Using undocumented variable
 
         if len(items) == 0:
             reply = "No audio in queue."

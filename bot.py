@@ -53,6 +53,7 @@ class MusicBot(discord.Client):
     song_queue = None
     url_regex = None
     current = None
+    last_text_channel = None
 
     def __init__(self, guild):
         self.guild = guild
@@ -135,6 +136,7 @@ class MusicBot(discord.Client):
 
     async def on_message(self, message):
         """Handler for receiving messages"""
+        self.last_text_channel = message.channel
         if message.author == self.user:
             return
 
@@ -153,6 +155,10 @@ class MusicBot(discord.Client):
 
         # Execute the command.
         await handler(message, command_content)
+
+    async def on_error(self, *_args, **_kwargs):
+        """Notify user of error"""
+        await self.last_text_channel.send("Something came up!")
 
     def next_in_queue(self, error):
         """Switch to next song in queue"""
@@ -173,10 +179,6 @@ class MusicBot(discord.Client):
         audio_source = discord.FFmpegPCMAudio(audio_url)
 
         if self.voice_client.is_playing():
-            # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem
-            # er callable, og þá getum við breytt hvað gerist þegar kallað er á
-            # after, þannig þegar stop trigger-ast þá getum við sleppt því að gera
-            # það sem við gerum venjulega
             logging.info("Pausing with HACK")
             self.voice_client.pause()
 
@@ -292,7 +294,8 @@ class MusicBot(discord.Client):
             await message.channel.send("Nothing is playing, and queue is empty")
 
         reply = "\n```"
-        reply += f">> Now playing: {self.current.title} <<\n"
+        reply += "Now playing:"
+        reply += f">> {self.current.title} <<\n"
         if self.queue.empty():
             reply += " -- No audio in queue --\n"
 

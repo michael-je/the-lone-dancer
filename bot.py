@@ -26,7 +26,8 @@ class MusicBot(discord.Client):
 
     # pylint: disable=no-self-use
 
-    COMMAND_PREFIX = "!"
+    # fffffffffffffffffffffffffffffewiofwejfæoweijfweoæifj
+    COMMAND_PREFIX = "+"
     _discord_helper = discord.Client()
 
     def __init__(self):
@@ -136,23 +137,23 @@ class MusicBot(discord.Client):
         # Execute the command.
         await handler(message, command_content)
 
-    def _stop(self):
-        """
-        A helper function that stops playing music
-        """
-        self.after_callback_blocked = True
-        self.voice_client.stop()
-
     def after_callback(self, _):
         """
         Plays the next item in queue if after_callback_blocked == False, otherwise stops the music.
         Used as a callback for play().
         """
         if not self.after_callback_blocked:
-            #TODO hér væri hægt að nota self.loop.create_task
+            # we could self.loop.create_task here if next_in_queue needs to be async
             self.next_in_queue()
         else:
             self.after_callback_blocked = False
+
+    def _stop(self):
+        """
+        A helper function that stops playing music
+        """
+        self.after_callback_blocked = True
+        self.voice_client.stop()
 
     def next_in_queue(self):
         """Switch to next song in queue"""
@@ -173,7 +174,7 @@ class MusicBot(discord.Client):
                 message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
             )
 
-    async def get_voice_channel(self, message):
+    def get_voice_channel(self, message):
         """
         Get voice channel for message author. Complain if author is not in a channel
         """
@@ -181,7 +182,9 @@ class MusicBot(discord.Client):
             logging.error("message is not of type discord.Message!")
             return None
         if message.author.voice is None:
-            await message.channel.send("You are not connected to a voice channel!")
+            self.loop.create_task(
+                message.channel.send("You are not connected to a voice channel!")
+            )
             return None
         voice_channel = message.author.voice.channel
         return voice_channel
@@ -194,7 +197,7 @@ class MusicBot(discord.Client):
         if not isinstance(message, discord.Message):
             logging.error("message is not of type discord.Message!")
             return None
-        voice_channel = await self.get_voice_channel(message)
+        voice_channel = self.get_voice_channel(message)
         if voice_channel is None:
             return None
         for voice_client in self.voice_clients:
@@ -206,6 +209,10 @@ class MusicBot(discord.Client):
     async def connect_deaf(self, channel):
         """Connect to channel self-deafened, the connected voice client"""
         logging.info("Connecting to voice channel")
+
+        if self.voice_client is not None:
+            return self.voice_client
+
         voice_client = await channel.connect()
         await voice_client.guild.change_voice_state(
             channel=channel,
@@ -222,7 +229,7 @@ class MusicBot(discord.Client):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        voice_channel = await self.get_voice_channel(message)
+        voice_channel = self.get_voice_channel(message)
         if voice_channel is None:
             # Exit early if user is not connected
             return
@@ -242,6 +249,8 @@ class MusicBot(discord.Client):
         self.play_ctx_queue.put((media, message))
 
         voice_client = await self.connect_deaf(voice_channel)
+        self.voice_client = voice_client
+
         if voice_client.is_playing():
             await message.channel.send(f"Added to Queue: \n```\n{media.title}\n```")
         else:
@@ -275,7 +284,9 @@ class MusicBot(discord.Client):
 
     async def queue(self, message, _command_content):
         """Displays media that has been queued"""
-        items = list(self.play_ctx_queue.queue)
+        items = list(
+            self.play_ctx_queue.queue
+        )  # This relize on the internal data structure of the queue, which isn't ideal.
 
         if len(items) == 0:
             await message.channel.send("No audio in queue.")

@@ -60,7 +60,7 @@ class MusicBot(discord.Client):
         self.guild = guild
         self.handlers = {}
         self.voice_client = None
-        self.play_ctx_queue = queue.Queue()
+        self.queue = queue.Queue()
         self.url_regex = re.compile(
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
@@ -71,7 +71,7 @@ class MusicBot(discord.Client):
         self.register_command("pause", handler=self.pause)
         self.register_command("resume", handler=self.resume)
         self.register_command("skip", handler=self.skip)
-        self.register_command("queue", handler=self.queue)
+        self.register_command("queue", handler=self.show_queue)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -158,8 +158,8 @@ class MusicBot(discord.Client):
 
     def next_in_queue(self, _):
         """Switch to next song in queue"""
-        if self.play_ctx_queue.empty():
-            cmd_ctx = self.play_ctx_queue.get()
+        if self.queue.empty():
+            cmd_ctx = self.queue.get()
             media = cmd_ctx[0]
             message = cmd_ctx[1]
             audio_url = media.getbestaudio().url
@@ -214,6 +214,10 @@ class MusicBot(discord.Client):
     async def connect_deaf(self, channel):
         """Connect to channel self-deafened, the connected voice client"""
         logging.info("Connecting to voice channel")
+        for voice_client in self.voice_clients:
+            if voice_client.guild == self.guild:
+                logging.info("Found existing voice client %s", voice_client)
+                return voice_client
         voice_client = await channel.connect()
         await voice_client.guild.change_voice_state(
             channel=channel,
@@ -245,7 +249,7 @@ class MusicBot(discord.Client):
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
-        self.play_ctx_queue.put((media, message))
+        self.queue.put((media, message))
 
         voice_client = await self.connect_deaf(voice_channel)
         if voice_client.is_playing():
@@ -276,10 +280,10 @@ class MusicBot(discord.Client):
         """Skip to next song in queue"""
         self.next_in_queue(None)
 
-    async def queue(self, message, _command_content):
+    async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
         reply = ""
-        items = list(self.play_ctx_queue.queue)
+        items = list(self.queue.queue)
 
         if len(items) == 0:
             reply = "No audio in queue."

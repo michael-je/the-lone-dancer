@@ -33,9 +33,6 @@ class BotDispatcher(discord.Client):
     @client.event
     async def on_message(self, message):
         """Login and loading handling"""
-        logging.info(
-            "Received message from %s saying %s", message.author, message.content
-        )
         if message.guild not in self.clients:
             self.clients[message.guild] = MusicBot(message.guild)
         await self.clients[message.guild].on_message(message)
@@ -55,6 +52,7 @@ class MusicBot(discord.Client):
     voice_client = None
     song_queue = None
     url_regex = None
+    current = None
 
     def __init__(self, guild):
         self.guild = guild
@@ -156,30 +154,38 @@ class MusicBot(discord.Client):
         # Execute the command.
         await handler(message, command_content)
 
-    def next_in_queue(self, _):
+    def next_in_queue(self, error):
         """Switch to next song in queue"""
         if self.queue.empty():
-            cmd_ctx = self.queue.get()
-            media = cmd_ctx[0]
-            message = cmd_ctx[1]
-            audio_url = media.getbestaudio().url
-            audio_source = discord.FFmpegPCMAudio(audio_url)
+            logging.info("Queue is empty, nothing to play")
+            self.current = None
+            self.voice_client.stop()
+            return
 
-            loop = self.loop
+        loop = self.loop
+        media, message = self.queue.get()
+        if error is not None:
+            loop.create_task(message.channel.send(f"Error playing audio: {error}"))
 
-            if self.voice_client.is_playing():
-                # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem
-                # er callable, og þá getum við breytt hvað gerist þegar kallað er á
-                # after, þannig þegar stop trigger-ast þá getum við sleppt því að gera
-                # það sem við gerum venjulega
-                self.voice_client.pause()
+        logging.info("Fetching audio URL for '%s'", media.title)
+        self.current = media
+        audio_url = media.getbestaudio().url
+        audio_source = discord.FFmpegPCMAudio(audio_url)
 
-            self.voice_client.play(audio_source, after=self.next_in_queue)
-            loop.create_task(
-                message.channel.send(
-                    "Now Playing: " + media.title + " - " + media.duration
-                )
-            )
+        if self.voice_client.is_playing():
+            # þetta er hakk lausn, frekar ættum við að setja klasa inn sem after sem
+            # er callable, og þá getum við breytt hvað gerist þegar kallað er á
+            # after, þannig þegar stop trigger-ast þá getum við sleppt því að gera
+            # það sem við gerum venjulega
+            logging.info("Pausing with HACK")
+            self.voice_client.pause()
+
+        logging.info("Playing audio source")
+        self.voice_client.play(audio_source, after=self.next_in_queue)
+        logging.info("Audio source started")
+        loop.create_task(
+            message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
+        )
 
     async def get_voice_channel(self, message):
         """
@@ -214,11 +220,10 @@ class MusicBot(discord.Client):
     async def connect_deaf(self, channel):
         """Connect to channel self-deafened, the connected voice client"""
         logging.info("Connecting to voice channel")
-        for voice_client in self.voice_clients:
-            if voice_client.guild == self.guild:
-                logging.info("Found existing voice client %s", voice_client)
-                return voice_client
+        if self.voice_client is not None:
+            return self.voice_client
         voice_client = await channel.connect()
+        self.voice_client = voice_client
         await voice_client.guild.change_voice_state(
             channel=channel,
             self_deaf=True,
@@ -255,7 +260,6 @@ class MusicBot(discord.Client):
         if voice_client.is_playing():
             await message.channel.send(f"Added to Queue: \n```\n{media.title}\n```")
         else:
-            await message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
             self.next_in_queue(None)
 
     async def stop(self, message, _command_content):
@@ -276,23 +280,27 @@ class MusicBot(discord.Client):
         if voice_client:
             voice_client.resume()
 
-    async def skip(self, _message, _command_content):
+    async def skip(self, message, _command_content):
         """Skip to next song in queue"""
+        if self.queue.empty():
+            await message.channel.send("End of queue :'(")
         self.next_in_queue(None)
 
     async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
-        reply = ""
-        items = list(self.queue.queue)  # FIXME Using undocumented variable
+        if self.current is None and self.queue.empty():
+            await message.channel.send("Nothing is playing, and queue is empty")
 
-        if len(items) == 0:
-            reply = "No audio in queue."
+        reply = "\n```"
+        reply += f">> Now playing: {self.current.title} <<\n"
+        if self.queue.empty():
+            reply += " -- No audio in queue --\n"
 
-        for i in range(0, len(items)):  # pylint: disable=consider-using-enumerate
-            item = items[i][0]  # we only care about the media metadata
-            reply += str(i + 1) + ": " + item.title
-            if i < len(items) - 1:
-                reply += "\n"
+        for index, item in enumerate(self.queue.queue):
+            media, _ = item  # we only care about the media metadata
+            reply += str(index + 1) + ": " + media.title
+            reply += "\n"
+        reply += "```"
 
         await message.channel.send(reply)
 

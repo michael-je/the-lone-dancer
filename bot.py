@@ -23,17 +23,18 @@ class BotDispatcher(discord.Client):
     """Dispatcher for client instances"""
 
     clients = dict()  # guild -> discord.Client instance
+    client = discord.Client()
 
-    @discord.Client.event
+    @client.event
     async def on_ready(self):
         """Login and loading handling"""
         logging.info("we have logged in as %s", self.user)
 
-    @discord.Client.event
+    @client.event
     async def on_message(self, message):
         """Login and loading handling"""
         logging.info(
-            "Received message from %s saying %s", message.author, message.contents
+            "Received message from %s saying %s", message.author, message.content
         )
         if message.guild not in self.clients:
             self.clients[message.guild] = MusicBot(message.guild)
@@ -122,7 +123,7 @@ class MusicBot(discord.Client):
                 f" '{MusicBot.COMMAND_PREFIX}'"
             )
 
-        prefix_end = re.match(self.COMMAND_PREFIX, message_content).end(group=0)
+        prefix_end = re.match(self.COMMAND_PREFIX, message_content).end()
         content_split = message_content[prefix_end:].split(" ", 1)
         command_name = content_split[0]
         command_content = ""

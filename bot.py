@@ -83,7 +83,7 @@ class MusicBot(discord.Client):
 
             async def guarded_handler(*args):
                 async with guarded_by:
-                    return handler(*args)
+                    return await handler(*args)
 
             self.handlers[command_name] = guarded_handler
         else:

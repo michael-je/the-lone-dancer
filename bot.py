@@ -333,9 +333,7 @@ class MusicBot(discord.Client):
         for channel in await message.guild.fetch_channels():
             if isinstance(channel, discord.VoiceChannel):
                 voice_client = await channel.connect()
-                audio_source = await discord.FFmpegOpusAudio.from_probe(
-                    "Dinkster.ogg"
-                )
+                audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
                 voice_client.play(audio_source)
                 await asyncio.sleep(10)
                 await voice_client.disconnect()

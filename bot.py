@@ -295,7 +295,10 @@ class MusicBot(discord.Client):
             await message.channel.send("\n".join(lines))
 
     async def disconnect(self, message, _command_content):
-        await (await self.get_voice_client(message)).disconnect()
+        """Disconnects the bot from the voice channel its connected to, if any."""
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            await voice_client.disconnect()
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""

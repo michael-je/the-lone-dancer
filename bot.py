@@ -26,7 +26,7 @@ class MusicBot(discord.Client):
 
     # pylint: disable=no-self-use
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "="
     _discord_helper = discord.Client()
 
     def __init__(self):
@@ -44,6 +44,7 @@ class MusicBot(discord.Client):
         self.register_command("resume", handler=self.resume)
         self.register_command("skip", handler=self.skip)
         self.register_command("queue", handler=self.queue)
+        self.register_command("disconnect", handler=self.disconnect)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -89,7 +90,7 @@ class MusicBot(discord.Client):
             value will be an error message displayable to the user which says the
             command was not recognized.
         """
-        if message_content[0] != "!":
+        if message_content[0] != "=":
             raise ValueError(
                 f"Message '{message_content}' does not begin with"
                 f" '{MusicBot.COMMAND_PREFIX}'"
@@ -268,6 +269,9 @@ class MusicBot(discord.Client):
                 reply += "\n"
 
         await message.channel.send(reply)
+
+    async def disconnect(self, message, _command_content):
+        await (await self.get_voice_client(message)).disconnect()
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""

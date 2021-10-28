@@ -146,14 +146,14 @@ class MusicBot(discord.Client):
 
         # The command was not recognized
         if error_msg:
-            return await message.channel.send(error_msg)
+            return await message.channel.send(f":robot: {error_msg}")
 
         # Execute the command.
         await handler(message, command_content)
 
     async def on_error(self, *_args, **_kwargs):
         """Notify user of error"""
-        await self.last_text_channel.send("Something came up!")
+        await self.last_text_channel.send(":robot: Something came up!")
 
     def after_callback(self, _):
         """
@@ -197,7 +197,9 @@ class MusicBot(discord.Client):
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
         loop.create_task(
-            message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
+            message.channel.send(
+                f":notes: Now Playing :notes:\n```\n{media.title}\n```"
+            )
         )
 
     def get_voice_channel(self, message):
@@ -209,7 +211,9 @@ class MusicBot(discord.Client):
             return None
         if message.author.voice is None:
             self.loop.create_task(
-                message.channel.send("You are not connected to a voice channel!")
+                message.channel.send(
+                    ":studio_microphone: You are not connected to a voice channel!"
+                )
             )
             return None
         voice_channel = message.author.voice.channel
@@ -288,7 +292,7 @@ class MusicBot(discord.Client):
 
         if voice_client.is_playing():
             await message.channel.send(
-                f":notes: Added to Queue :notes: \n```\n{media.title}\n```"
+                f":clipboard: Added to Queue\n```\n{media.title}\n```"
             )
         else:
             self.next_in_queue()
@@ -315,7 +319,7 @@ class MusicBot(discord.Client):
         """Skip to next song in queue"""
         if self.voice_client:
             if self.queue.empty():
-                await message.channel.send("End of queue :sparkles:")
+                await message.channel.send(":clipboard: End of queue :sparkles:")
                 self._stop()
             else:
                 self.next_in_queue()
@@ -323,18 +327,16 @@ class MusicBot(discord.Client):
     async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
         if self.current is None and self.queue.empty():
-            await message.channel.send(
-                "Nothing is playing, and queue is empty :sparkles:"
-            )
+            await message.channel.send(":clipboard: Nothing in queue :sparkles:")
 
-        reply = "\n```"
-        reply += "Now playing:\n"
-        reply += f">> {self.current.title} <<\n"
+        reply = ""
+        reply += ":notes: Now playing :notes:\n"
+        reply += "\n```"
+        reply += f"{self.current.title}\n"
         if self.queue.empty():
             reply += " -- No audio in queue --\n"
         else:
-            reply += "Queue:\n\n"
-            reply += "---\n"
+            reply += " -- Queue --\n"
 
         for index, item in enumerate(self.queue.queue):  # Internals usage :(
             media, _ = item  # we only care about the media metadata
@@ -346,7 +348,7 @@ class MusicBot(discord.Client):
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""
-        await message.channel.send("Hello!")
+        await message.channel.send(f":wave: Hello! {message.author}")
 
     async def countdown(self, message, command_content):
         """Count down from 10 and explode"""
@@ -356,9 +358,9 @@ class MusicBot(discord.Client):
                 await message.channel.send(seconds)
                 await asyncio.sleep(1)
                 seconds -= 1
-            await message.channel.send("BOOOM!!!")
+            await message.channel.send(":boom: BOOOM!!! :boom:")
         except ValueError:
-            await message.channel.send(f"{command_content} is not an integer.")
+            await message.channel.send(f":robot: {command_content} is not an integer.")
 
     async def dinkster(self, message, _command_content):
         """Ring the dinkster in all voice channels"""
@@ -407,7 +409,7 @@ class MusicBot(discord.Client):
         category_plurality = "categories" if len(invalid_categories) > 1 else "category"
         if len(invalid_categories) > 0:
             await message.channel.send(
-                f"Invalid joke {category_plurality} "
+                f":interrobang: Invalid joke {category_plurality} "
                 f"'{', '.join(invalid_categories)}'"
             )
             logging.info(

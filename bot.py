@@ -209,7 +209,11 @@ class MusicBot(discord.Client):
         if not isinstance(message, discord.Message):
             logging.error("message is not of type discord.Message!")
             return None
-        if message.author.voice is None:
+        if (
+            message.author.voice is None
+            or self.voice_client is not None
+            and message.author.voice.channel != self.voice_client.channel
+        ):
             self.loop.create_task(
                 message.channel.send(
                     ":studio_microphone: You are not connected to a voice channel!"

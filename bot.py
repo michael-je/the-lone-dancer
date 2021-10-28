@@ -287,7 +287,9 @@ class MusicBot(discord.Client):
         self.voice_client = voice_client
 
         if voice_client.is_playing():
-            await message.channel.send(f"Added to Queue: \n```\n{media.title}\n```")
+            await message.channel.send(
+                f":notes: Added to Queue :notes: \n```\n{media.title}\n```"
+            )
         else:
             self.next_in_queue()
 
@@ -313,7 +315,7 @@ class MusicBot(discord.Client):
         """Skip to next song in queue"""
         if self.voice_client:
             if self.queue.empty():
-                await message.channel.send(":x: End of queue :x:")
+                await message.channel.send("End of queue :sparkles:")
                 self._stop()
             else:
                 self.next_in_queue()

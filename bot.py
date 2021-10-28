@@ -265,11 +265,16 @@ class MusicBot(discord.Client):
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
-        if url_regex.match(command_content):
-            media = pafy.new(command_content)
-        else:
-            search_result = VideosSearch(command_content).result()
-            media = pafy.new(search_result["result"][0]["id"])
+        try:
+            if url_regex.match(command_content):
+                media = pafy.new(command_content)
+            else:
+                search_result = VideosSearch(command_content).result()
+                media = pafy.new(search_result["result"][0]["id"])
+        except KeyError:
+            # In rare cases we get an error processing media, e.g. when vid has no likes
+            # KeyError: 'like_count'
+            await message.channel.send(":robot: Error getting media data :robot:")
 
         logging.info("Media found:\n%s", media)
 

@@ -192,7 +192,7 @@ class MusicBot(discord.Client):
 
         if self.voice_client.is_playing():
             logging.info("Pausing with HACK")
-            self.voice_client.pause()
+            self.voice_client._stop()
 
         logging.info("Playing audio source")
         self.voice_client.play(audio_source, after=self.after_callback)

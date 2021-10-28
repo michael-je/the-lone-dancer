@@ -174,27 +174,6 @@ class MusicBot(discord.Client):
         self.after_callback_blocked = True
         self.voice_client.stop()
 
-    _x = """
-    def next_in_queue(self):
-        '''Switch to next song in queue'''
-        if not self.play_ctx_queue.empty():
-            cmd_ctx = self.play_ctx_queue.get()
-            media = cmd_ctx[0]
-            message = cmd_ctx[1]
-            audio_url = media.getbestaudio().url
-            audio_source = discord.FFmpegPCMAudio(audio_url)
-
-            loop = self.loop
-
-            if self.voice_client.is_playing():
-                self._stop()
-
-            self.voice_client.play(audio_source, after=self.after_callback)
-            loop.create_task(
-                message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
-            )
-            """
-
     def next_in_queue(self):
         """Switch to next song in queue"""
         if self.queue.empty():
@@ -216,7 +195,7 @@ class MusicBot(discord.Client):
             self.voice_client.pause()
 
         logging.info("Playing audio source")
-        self.voice_client.play(audio_source, after=self.next_in_queue)
+        self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
         loop.create_task(
             message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
@@ -330,7 +309,7 @@ class MusicBot(discord.Client):
         """Skip to next song in queue"""
         if self.voice_client:
             if self.queue.empty():
-                await message.channel.send("End of queue :'(")
+                await message.channel.send(":x: End of queue :x:")
                 self._stop()
             else:
                 self.next_in_queue()

@@ -22,7 +22,7 @@ from youtubesearchpython import VideosSearch
 class BotDispatcher(discord.Client):
     """Dispatcher for client instances"""
 
-    clients = dict()  # guild -> discord.Client instance
+    clients = {}  # guild -> discord.Client instance
     client = discord.Client()
 
     @client.event

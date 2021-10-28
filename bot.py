@@ -323,7 +323,9 @@ class MusicBot(discord.Client):
     async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
         if self.current is None and self.queue.empty():
-            await message.channel.send("Nothing is playing, and queue is empty")
+            await message.channel.send(
+                "Nothing is playing, and queue is empty :sparkles:"
+            )
 
         reply = "\n```"
         reply += "Now playing:\n"

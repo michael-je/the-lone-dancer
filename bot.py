@@ -56,7 +56,6 @@ class MusicBot(discord.Client):
     def __init__(self, guild):
         self.guild = guild
         self.handlers = {}
-        self.voice_client = None
         self.queue = queue.Queue()
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
@@ -192,7 +191,7 @@ class MusicBot(discord.Client):
 
         if self.voice_client.is_playing():
             logging.info("Pausing with HACK")
-            self.voice_client._stop()
+            self._stop()
 
         logging.info("Playing audio source")
         self.voice_client.play(audio_source, after=self.after_callback)

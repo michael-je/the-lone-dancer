@@ -19,6 +19,25 @@ import pafy
 from youtubesearchpython import VideosSearch
 
 
+class BotDispatcher(discord.Client):
+    """Dispatcher for client instances"""
+
+    clients = {}  # guild -> discord.Client instance
+    client = discord.Client()
+
+    @client.event
+    async def on_ready(self):
+        """Login and loading handling"""
+        logging.info("we have logged in as %s", self.user)
+
+    @client.event
+    async def on_message(self, message):
+        """Login and loading handling"""
+        if message.guild not in self.clients:
+            self.clients[message.guild] = MusicBot(message.guild)
+        await self.clients[message.guild].on_message(message)
+
+
 class MusicBot(discord.Client):
     """
     The main bot functionality
@@ -26,28 +45,28 @@ class MusicBot(discord.Client):
 
     # pylint: disable=no-self-use
 
-    # fffffffffffffffffffffffffffffewiofwejfæoweijfweoæifj
-    COMMAND_PREFIX = "+"
-    _discord_helper = discord.Client()
+    COMMAND_PREFIX = "!"
+    guild = None
+    handlers = None
+    voice_client = None
+    song_queue = None
+    current = None
+    last_text_channel = None
 
-    def __init__(self):
+    def __init__(self, guild):
+        self.guild = guild
         self.handlers = {}
         self.voice_client = None
-        self.play_ctx_queue = queue.Queue()
-
+        self.queue = queue.Queue()
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
-        self.url_regex = re.compile(
-            r"http[s]?://"
-            r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-        )
 
         self.register_command("play", handler=self.play)
         self.register_command("stop", handler=self.stop)
         self.register_command("pause", handler=self.pause)
         self.register_command("resume", handler=self.resume)
         self.register_command("skip", handler=self.skip)
-        self.register_command("queue", handler=self.queue)
+        self.register_command("queue", handler=self.show_queue)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -93,13 +112,14 @@ class MusicBot(discord.Client):
             value will be an error message displayable to the user which says the
             command was not recognized.
         """
-        if message_content[0] != self.COMMAND_PREFIX:
+        if not message_content.startswith(self.COMMAND_PREFIX):
             raise ValueError(
                 f"Message '{message_content}' does not begin with"
                 f" '{MusicBot.COMMAND_PREFIX}'"
             )
 
-        content_split = message_content[1:].split(" ", 1)
+        prefix_end = re.match(self.COMMAND_PREFIX, message_content).end()
+        content_split = message_content[prefix_end:].split(" ", 1)
         command_name = content_split[0]
         command_content = ""
         if len(content_split) == 2:
@@ -110,21 +130,16 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-    @_discord_helper.event
-    async def on_ready(self):
-        """Login and loading handling"""
-        logging.info("we have logged in as %s", self.user)
-
-    @_discord_helper.event
     async def on_message(self, message):
         """Handler for receiving messages"""
+        self.last_text_channel = message.channel
         if message.author == self.user:
             return
 
         if not message.content:
             return
 
-        if message.content[0] != MusicBot.COMMAND_PREFIX:
+        if not message.content.startswith(self.COMMAND_PREFIX):
             # Message not attempting to be a command.
             return
 
@@ -137,10 +152,14 @@ class MusicBot(discord.Client):
         # Execute the command.
         await handler(message, command_content)
 
+    async def on_error(self, *_args, **_kwargs):
+        """Notify user of error"""
+        await self.last_text_channel.send("Something came up!")
+
     def after_callback(self, _):
         """
-        Plays the next item in queue if after_callback_blocked == False, otherwise stops the music.
-        Used as a callback for play().
+        Plays the next item in queue if after_callback_blocked == False, otherwise stops
+        the music. Used as a callback for play().
         """
         if not self.after_callback_blocked:
             # we could self.loop.create_task here if next_in_queue needs to be async
@@ -155,8 +174,9 @@ class MusicBot(discord.Client):
         self.after_callback_blocked = True
         self.voice_client.stop()
 
+    _x = """
     def next_in_queue(self):
-        """Switch to next song in queue"""
+        '''Switch to next song in queue'''
         if not self.play_ctx_queue.empty():
             cmd_ctx = self.play_ctx_queue.get()
             media = cmd_ctx[0]
@@ -173,6 +193,34 @@ class MusicBot(discord.Client):
             loop.create_task(
                 message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
             )
+            """
+
+    def next_in_queue(self):
+        """Switch to next song in queue"""
+        if self.queue.empty():
+            logging.info("Queue is empty, nothing to play")
+            self.current = None
+            self.voice_client.stop()
+            return
+
+        loop = self.loop
+        media, message = self.queue.get()
+
+        logging.info("Fetching audio URL for '%s'", media.title)
+        self.current = media
+        audio_url = media.getbestaudio().url
+        audio_source = discord.FFmpegPCMAudio(audio_url)
+
+        if self.voice_client.is_playing():
+            logging.info("Pausing with HACK")
+            self.voice_client.pause()
+
+        logging.info("Playing audio source")
+        self.voice_client.play(audio_source, after=self.next_in_queue)
+        logging.info("Audio source started")
+        loop.create_task(
+            message.channel.send(f"Now Playing: \n```\n{media.title}\n```")
+        )
 
     def get_voice_channel(self, message):
         """
@@ -209,11 +257,11 @@ class MusicBot(discord.Client):
     async def connect_deaf(self, channel):
         """Connect to channel self-deafened, the connected voice client"""
         logging.info("Connecting to voice channel")
-
         if self.voice_client is not None:
             return self.voice_client
 
         voice_client = await channel.connect()
+        self.voice_client = voice_client
         await voice_client.guild.change_voice_state(
             channel=channel,
             self_deaf=True,
@@ -235,7 +283,11 @@ class MusicBot(discord.Client):
             return
 
         media = None
-        if self.url_regex.match(command_content):
+        url_regex = re.compile(
+            r"http[s]?://"
+            r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+        )
+        if url_regex.match(command_content):
             media = pafy.new(command_content)
         else:
             search_result = VideosSearch(command_content).result()
@@ -246,7 +298,7 @@ class MusicBot(discord.Client):
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
-        self.play_ctx_queue.put((media, message))
+        self.queue.put((media, message))
 
         voice_client = await self.connect_deaf(voice_channel)
         self.voice_client = voice_client
@@ -274,25 +326,36 @@ class MusicBot(discord.Client):
         if voice_client:
             voice_client.resume()
 
-    async def skip(self, _message, _command_content):
+    async def skip(self, message, _command_content):
         """Skip to next song in queue"""
         if self.voice_client:
-            if self.play_ctx_queue.empty():
+            if self.queue.empty():
+                await message.channel.send("End of queue :'(")
                 self._stop()
             else:
                 self.next_in_queue()
 
-    async def queue(self, message, _command_content):
+    async def show_queue(self, message, _command_content):
         """Displays media that has been queued"""
-        items = list(
-            self.play_ctx_queue.queue
-        )  # This relize on the internal data structure of the queue, which isn't ideal.
+        if self.current is None and self.queue.empty():
+            await message.channel.send("Nothing is playing, and queue is empty")
 
-        if len(items) == 0:
-            await message.channel.send("No audio in queue.")
+        reply = "\n```"
+        reply += "Now playing:\n"
+        reply += f">> {self.current.title} <<\n"
+        if self.queue.empty():
+            reply += " -- No audio in queue --\n"
         else:
-            lines = [f"{i+1}: {item[0].title}" for i, item in enumerate(items)]
-            await message.channel.send("\n".join(lines))
+            reply += "Queue:\n\n"
+            reply += "---\n"
+
+        for index, item in enumerate(self.queue.queue):  # Internals usage :(
+            media, _ = item  # we only care about the media metadata
+            reply += str(index + 1) + ": " + media.title
+            reply += "\n"
+        reply += "```"
+
+        await message.channel.send(reply)
 
     async def hello(self, message, _command_content):
         """Greet the author with a nice message"""
@@ -403,4 +466,4 @@ if __name__ == "__main__":
     assert token is not None
 
     logging.info("Starting bot")
-    MusicBot().run(token)
+    BotDispatcher().run(token)

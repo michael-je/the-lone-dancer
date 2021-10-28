@@ -6,13 +6,13 @@ Test bot.py
 
 import pytest
 
-from bot import MusicBot
+from bot import BotDispatcher
 
 
 @pytest.fixture
 def bot():
     """Get a bot.MusicBot instance"""
-    return MusicBot()
+    return BotDispatcher()
 
 
 def test_initialization(bot):

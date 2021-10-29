@@ -67,6 +67,7 @@ class MusicBot(discord.Client):
         self.register_command("resume", handler=self.resume)
         self.register_command("skip", handler=self.skip)
         self.register_command("queue", handler=self.show_queue)
+        self.register_command("disconnect", handler=self.disconnect)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -370,6 +371,12 @@ class MusicBot(discord.Client):
         reply += "```"
 
         await message.channel.send(reply)
+
+    async def disconnect(self, message, _command_content):
+        """Disconnects the bot from the voice channel its connected to, if any."""
+        voice_client = await self.get_voice_client(message)
+        if voice_client:
+            await voice_client.disconnect()
 
     async def hello(self, message, _command_content):
         """

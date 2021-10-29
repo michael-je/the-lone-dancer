@@ -45,6 +45,7 @@ class MusicBot(discord.Client):
     """
 
     # pylint: disable=no-self-use
+    # pylint: disable=too-many-instance-attributes
 
     COMMAND_PREFIX = "!"
     guild = None
@@ -61,22 +62,31 @@ class MusicBot(discord.Client):
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
 
-        self.register_command("play", handler=self.play)
-        self.register_command("stop", handler=self.stop)
-        self.register_command("pause", handler=self.pause)
-        self.register_command("resume", handler=self.resume)
-        self.register_command("skip", handler=self.skip)
-        self.register_command("queue", handler=self.show_queue)
-        self.register_command("disconnect", handler=self.disconnect)
+        # This lock should be acquired before trying to change the voice state of the bot.
+        self.voice_lock = asyncio.Lock()
+
+        self.register_command("play", handler=self.play, guarded_by=self.voice_lock)
+        self.register_command("stop", handler=self.stop, guarded_by=self.voice_lock)
+        self.register_command("pause", handler=self.pause, guarded_by=self.voice_lock)
+        self.register_command("resume", handler=self.resume, guarded_by=self.voice_lock)
+        self.register_command("skip", handler=self.skip, guarded_by=self.voice_lock)
+        self.register_command(
+            "disconnect", handler=self.disconnect, guarded_by=self.voice_lock
+        )
+        self.register_command("queue", handler=self.queue)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
-        self.register_command("dinkster", handler=self.dinkster)
+        self.register_command(
+            "dinkster", handler=self.dinkster, guarded_by=self.voice_lock
+        )
         self.register_command("joke", handler=self.joke)
 
         super().__init__()
 
-    def register_command(self, command_name, handler=None):
+    def register_command(
+        self, command_name, handler=None, guarded_by: asyncio.Lock = None
+    ):
         """
         Register a command with the name 'command_name'.
 
@@ -87,10 +97,21 @@ class MusicBot(discord.Client):
             discord.Message and a string. The messageris the message being
             processed by the handler and command_content is the string
             contents of the command passed by the user.
+          guarded_by: A lock which will be acquired before each call to the
+            handler passed.
         """
         assert handler
         assert command_name not in self.handlers
-        self.handlers[command_name] = handler
+
+        if guarded_by:
+
+            async def guarded_handler(*args):
+                async with guarded_by:
+                    return await handler(*args)
+
+            self.handlers[command_name] = guarded_handler
+        else:
+            self.handlers[command_name] = handler
 
     def get_command_handler(self, message_content):
         """

@@ -1,10 +1,5 @@
-"""
-Author MikkMakk88, morgaesis et al.
-
-(c)2021
-"""
-
 # pylint: disable=import-error
+# pylint: disable=missing-module-docstring
 
 
 import os
@@ -20,19 +15,25 @@ from youtubesearchpython import VideosSearch
 
 
 class BotDispatcher(discord.Client):
-    """Dispatcher for client instances"""
+    """
+    Dispatcher for client instances
+    """
 
     clients = {}  # guild -> discord.Client instance
     client = discord.Client()
 
     @client.event
     async def on_ready(self):
-        """Login and loading handling"""
+        """
+        Login and loading handling
+        """
         logging.info("we have logged in as %s", self.user)
 
     @client.event
     async def on_message(self, message):
-        """Login and loading handling"""
+        """
+        Login and loading handling
+        """
         if message.guild not in self.clients:
             self.clients[message.guild] = MusicBot(message.guild)
         await self.clients[message.guild].on_message(message)
@@ -75,7 +76,8 @@ class MusicBot(discord.Client):
         super().__init__()
 
     def register_command(self, command_name, handler=None):
-        """Register a command with the name 'command_name'.
+        """
+        Register a command with the name 'command_name'.
 
         Arguments:
           command_name: String. The name of the command to register. This is
@@ -90,7 +92,8 @@ class MusicBot(discord.Client):
         self.handlers[command_name] = handler
 
     def get_command_handler(self, message_content):
-        """Tries to parse message_content as a command and fetch the corresponding
+        """
+        Tries to parse message_content as a command and fetch the corresponding
         handler for the command.
 
         Arguments
@@ -130,7 +133,9 @@ class MusicBot(discord.Client):
         return self.handlers[command_name], command_content, None
 
     async def on_message(self, message):
-        """Handler for receiving messages"""
+        """
+        Handler for receiving messages
+        """
         self.last_text_channel = message.channel
         if message.author == self.user:
             return
@@ -152,7 +157,9 @@ class MusicBot(discord.Client):
         await handler(message, command_content)
 
     async def on_error(self, *_args, **_kwargs):
-        """Notify user of error"""
+        """
+        Notify user of error
+        """
         await self.last_text_channel.send(":robot: Something came up!")
 
     def after_callback(self, _):
@@ -174,7 +181,9 @@ class MusicBot(discord.Client):
         self.voice_client.stop()
 
     def next_in_queue(self):
-        """Switch to next song in queue"""
+        """
+        Switch to next song in queue
+        """
         if self.queue.empty():
             logging.info("Queue is empty, nothing to play")
             self.current = None
@@ -241,7 +250,9 @@ class MusicBot(discord.Client):
         return await self.connect_deaf(voice_channel)
 
     async def connect_deaf(self, channel):
-        """Connect to channel self-deafened, the connected voice client"""
+        """
+        Connect to channel self-deafened, the connected voice client
+        """
         logging.info("Connecting to voice channel")
         if self.voice_client is not None:
             return self.voice_client
@@ -302,25 +313,33 @@ class MusicBot(discord.Client):
             self.next_in_queue()
 
     async def stop(self, message, _command_content):
-        """Stop currently playing song"""
+        """
+        Stop currently playing song
+        """
         voice_client = await self.get_voice_client(message)
         if voice_client:
             voice_client.stop()
 
     async def pause(self, message, _command_content):
-        """Pause currently playing song"""
+        """
+        Pause currently playing song
+        """
         voice_client = await self.get_voice_client(message)
         if voice_client:
             voice_client.pause()
 
     async def resume(self, message, _command_content):
-        """Resume playing current song"""
+        """
+        Resume playing current song
+        """
         voice_client = await self.get_voice_client(message)
         if voice_client:
             voice_client.resume()
 
     async def skip(self, message, _command_content):
-        """Skip to next song in queue"""
+        """
+        Skip to next song in queue
+        """
         if self.voice_client:
             if self.queue.empty():
                 await message.channel.send(":clipboard: End of queue :sparkles:")
@@ -329,7 +348,9 @@ class MusicBot(discord.Client):
                 self.next_in_queue()
 
     async def show_queue(self, message, _command_content):
-        """Displays media that has been queued"""
+        """
+        Displays media that has been queued
+        """
         if self.current is None and self.queue.empty():
             await message.channel.send(":clipboard: Nothing in queue :sparkles:")
 
@@ -351,11 +372,15 @@ class MusicBot(discord.Client):
         await message.channel.send(reply)
 
     async def hello(self, message, _command_content):
-        """Greet the author with a nice message"""
+        """
+        Greet the author with a nice message
+        """
         await message.channel.send(f":wave: Hello! {message.author}")
 
     async def countdown(self, message, command_content):
-        """Count down from 10 and explode"""
+        """
+        Count down from 10 and explode
+        """
         try:
             seconds = int(command_content)
             while seconds > 0:
@@ -367,7 +392,9 @@ class MusicBot(discord.Client):
             await message.channel.send(f":robot: {command_content} is not an integer.")
 
     async def dinkster(self, message, _command_content):
-        """Ring the dinkster in all voice channels"""
+        """
+        Ring the dinkster in all voice channels
+        """
         for channel in await message.guild.fetch_channels():
             if isinstance(channel, discord.VoiceChannel):
                 voice_client = await channel.connect()

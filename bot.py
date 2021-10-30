@@ -50,7 +50,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "#"
 
     def __init__(self, guild, dispatcher):
         self.guild = guild
@@ -206,6 +206,11 @@ class MusicBot:
         """
         Switch to next song in queue
         """
+        if not self.voice_client:
+            logging.error(
+                "Should not be called when the bot is not connected to voice!"
+            )
+
         if self.song_queue.empty():
             logging.info("Queue is empty, nothing to play")
             self.current_media = None
@@ -233,72 +238,39 @@ class MusicBot:
             )
         )
 
-    async def get_voice_channel(self, message):
-        """
-        Get voice channel for message author. Complain if author is not in a channel
-        """
-        if not isinstance(message, discord.Message):
-            logging.error("message is not of type discord.Message!")
-            return None
-        if message.author.voice is None:
-            await message.channel.send(
-                ":studio_microphone: You are not connected to a voice channel!"
-            )
-            return None
-        if (
-            self.voice_client is not None
-            and message.author.voice.channel != self.voice_client.channel
-        ):
-            await message.channel.send(
-                ":studio_microphone: You are not in the same voice channel as me!"
-            )
-            return None
-        voice_channel = message.author.voice.channel
-        return voice_channel
+    async def create_or_get_voice_client(self, message):
+        """Get a voice client to play audio.
 
-    async def get_voice_client(self, message):
-        """
-        Get voice client for message author. Complain if author is not in a channel,
-        connect to author voice client if not yet connected
-        """
-        if not isinstance(message, discord.Message):
-            logging.error("message is not of type discord.Message!")
-            return None
-        voice_channel = await self.get_voice_channel(message)
-        if voice_channel is None:
-            return None
-        return await self.connect_deaf(voice_channel)
+        Arguments:
+          message: A Discord message.
 
-    async def connect_deaf(self, channel):
+        Returns:
+          A Discord VoiceClient. If the bot is already connected to a channel,
+          return that voice client. If not, join the requesting user's voice
+          channel, if they are connected to one.
         """
-        Connect to channel self-deafened, the connected voice client
-        """
-        logging.info("Connecting to voice channel")
-        if self.voice_client is not None:
+        # Already connected to a voice channel, no need to create a new client.
+        if self.voice_client:
             return self.voice_client
 
-        voice_client = await channel.connect()
-        self.voice_client = voice_client
-        await voice_client.guild.change_voice_state(
-            channel=channel,
-            self_deaf=True,
+        requesting_user = message.author
+        if not requesting_user.voice.channel:
+            await message.channel.send(
+                f"Please join a voice channel {requesting_user}!"
+            )
+
+        # Create a new voice client.
+        self.voice_client = await requesting_user.voice.channel.connect()
+        await self.voice_client.guild.change_voice_state(
+            channel=requesting_user.voice.channel, self_deaf=True
         )
-        voice_states = voice_client.channel.voice_states
-        await asyncio.sleep(1)  # Without sleep deafening isn't registered in logs
-        logging.info(
-            "Bot is deafened: %s", voice_states[voice_client.user.id].self_deaf
-        )
-        return voice_client
+
+        return self.voice_client
 
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        voice_channel = await self.get_voice_channel(message)
-        if voice_channel is None:
-            # Exit early if user is not connected
-            return
-
         media = None
         try:
             if self.url_regex.match(command_content):
@@ -318,8 +290,7 @@ class MusicBot:
         # queue is unrolled.
         self.song_queue.put((media, message))
 
-        voice_client = await self.connect_deaf(voice_channel)
-        self.voice_client = voice_client
+        voice_client = await self.create_or_get_voice_client(message)
 
         if voice_client.is_playing():
             await message.channel.send(
@@ -328,29 +299,26 @@ class MusicBot:
         else:
             self.next_in_queue()
 
-    async def stop(self, message, _command_content):
+    async def stop(self, _message, _command_content):
         """
         Stop currently playing song
         """
-        voice_client = await self.get_voice_client(message)
-        if voice_client:
-            voice_client.stop()
+        if self.voice_client:
+            self.voice_client.stop()
 
-    async def pause(self, message, _command_content):
+    async def pause(self, _message, _command_content):
         """
         Pause currently playing song
         """
-        voice_client = await self.get_voice_client(message)
-        if voice_client:
-            voice_client.pause()
+        if self.voice_client:
+            self.voice_client.pause()
 
-    async def resume(self, message, _command_content):
+    async def resume(self, _message, _command_content):
         """
         Resume playing current song
         """
-        voice_client = await self.get_voice_client(message)
-        if voice_client:
-            voice_client.resume()
+        if self.voice_client:
+            self.voice_client.resume()
 
     async def skip(self, message, _command_content):
         """
@@ -387,11 +355,10 @@ class MusicBot:
 
         await message.channel.send(reply)
 
-    async def disconnect(self, message, _command_content):
+    async def disconnect(self, _message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""
-        voice_client = await self.get_voice_client(message)
-        if voice_client:
-            await voice_client.disconnect()
+        if self.voice_client:
+            await self.voice_client.disconnect()
 
     async def hello(self, message, _command_content):
         """
@@ -418,7 +385,7 @@ class MusicBot:
         Ring the dinkster in all voice channels
         """
         audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-        (await self.get_voice_client(message)).play(audio_source)
+        (await self.create_or_get_voice_client(message)).play(audio_source)
 
     async def joke(self, message, command_content, joke_pause=3):
         """

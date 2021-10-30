@@ -254,10 +254,11 @@ class MusicBot:
             return self.voice_client
 
         requesting_user = message.author
-        if not requesting_user.voice.channel:
+        if not requesting_user.voice or not requesting_user.voice.channel:
             await message.channel.send(
                 f"Please join a voice channel {requesting_user}!"
             )
+            return None
 
         # Create a new voice client.
         self.voice_client = await requesting_user.voice.channel.connect()
@@ -271,6 +272,10 @@ class MusicBot:
         """
         Play URL or first search term from command_content in the author's voice channel
         """
+        voice_client = await self.create_or_get_voice_client(message)
+        if not voice_client:
+            return
+
         media = None
         try:
             if self.url_regex.match(command_content):
@@ -289,8 +294,6 @@ class MusicBot:
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
         self.song_queue.put((media, message))
-
-        voice_client = await self.create_or_get_voice_client(message)
 
         if voice_client.is_playing():
             await message.channel.send(

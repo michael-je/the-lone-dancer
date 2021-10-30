@@ -49,7 +49,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "#"
+    COMMAND_PREFIX = "!"
 
     def __init__(self, guild, dispatcher):
         self.guild = guild

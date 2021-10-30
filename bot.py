@@ -18,9 +18,11 @@ class BotDispatcher(discord.Client):
     """
     Dispatcher for client instances
     """
-
-    clients = {}  # guild -> discord.Client instance
     client = discord.Client()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.clients = {}  # guild -> discord.Client instance
 
     @client.event
     async def on_ready(self):
@@ -35,11 +37,11 @@ class BotDispatcher(discord.Client):
         Login and loading handling
         """
         if message.guild not in self.clients:
-            self.clients[message.guild] = MusicBot(message.guild)
-        await self.clients[message.guild].on_message(message)
+            self.clients[message.guild] = MusicBot(message.guild, self)
+        await self.clients[message.guild].handle_message(message)
 
 
-class MusicBot(discord.Client):
+class MusicBot:
     """
     The main bot functionality
     """
@@ -47,18 +49,23 @@ class MusicBot(discord.Client):
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
-    guild = None
-    handlers = None
-    voice_client = None
-    song_queue = None
-    current = None
-    last_text_channel = None
+    COMMAND_PREFIX = "#"
 
-    def __init__(self, guild):
+    def __init__(self, guild, dispatcher):
         self.guild = guild
+        self.dispatcher = dispatcher
+
         self.handlers = {}
-        self.queue = queue.Queue()
+        self.song_queue = queue.Queue()
+        self.voice_client = None
+        self.current_media = None
+        self.last_text_channel = None
+
+        self.url_regex = re.compile(
+            r"http[s]?://"
+            r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+        )
+
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
 
@@ -73,7 +80,7 @@ class MusicBot(discord.Client):
         self.register_command(
             "disconnect", handler=self.disconnect, guarded_by=self.voice_lock
         )
-        self.register_command("queue", handler=self.queue)
+        self.register_command("queue", handler=self.show_queue)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -81,8 +88,6 @@ class MusicBot(discord.Client):
             "dinkster", handler=self.dinkster, guarded_by=self.voice_lock
         )
         self.register_command("joke", handler=self.joke)
-
-        super().__init__()
 
     def register_command(
         self, command_name, handler=None, guarded_by: asyncio.Lock = None
@@ -154,12 +159,12 @@ class MusicBot(discord.Client):
 
         return self.handlers[command_name], command_content, None
 
-    async def on_message(self, message):
+    async def handle_message(self, message):
         """
         Handler for receiving messages
         """
         self.last_text_channel = message.channel
-        if message.author == self.user:
+        if message.author == self.dispatcher.user:
             return
 
         if not message.content:
@@ -177,12 +182,6 @@ class MusicBot(discord.Client):
 
         # Execute the command.
         await handler(message, command_content)
-
-    async def on_error(self, *_args, **_kwargs):
-        """
-        Notify user of error
-        """
-        await self.last_text_channel.send(":robot: Something came up!")
 
     def after_callback(self, _):
         """
@@ -206,17 +205,16 @@ class MusicBot(discord.Client):
         """
         Switch to next song in queue
         """
-        if self.queue.empty():
+        if self.song_queue.empty():
             logging.info("Queue is empty, nothing to play")
-            self.current = None
+            self.current_media = None
             self.voice_client.stop()
             return
 
-        loop = self.loop
-        media, message = self.queue.get()
+        media, message = self.song_queue.get()
 
         logging.info("Fetching audio URL for '%s'", media.title)
-        self.current = media
+        self.current_media = media
         audio_url = media.getbestaudio().url
         audio_source = discord.FFmpegPCMAudio(audio_url)
 
@@ -227,29 +225,25 @@ class MusicBot(discord.Client):
         logging.info("Playing audio source")
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
-        loop.create_task(
+
+        self.dispatcher.loop.create_task(
             message.channel.send(
                 f":notes: Now Playing :notes:\n```\n{media.title}\n```"
             )
         )
 
-    def get_voice_channel(self, message):
+    async def get_voice_channel(self, message):
         """
         Get voice channel for message author. Complain if author is not in a channel
         """
         if not isinstance(message, discord.Message):
             logging.error("message is not of type discord.Message!")
             return None
-        if (
-            message.author.voice is None
-            or self.voice_client is not None
-            and message.author.voice.channel != self.voice_client.channel
-        ):
-            self.loop.create_task(
-                message.channel.send(
-                    ":studio_microphone: You are not connected to a voice channel!"
-                )
-            )
+        if message.author.voice is None:
+            await message.channel.send(":studio_microphone: You are not connected to a voice channel!")
+            return None
+        if self.voice_client is not None and message.author.voice.channel != self.voice_client.channel:
+            await message.channel.send(":studio_microphone: You are not in the same voice channel as me!")
             return None
         voice_channel = message.author.voice.channel
         return voice_channel
@@ -262,13 +256,9 @@ class MusicBot(discord.Client):
         if not isinstance(message, discord.Message):
             logging.error("message is not of type discord.Message!")
             return None
-        voice_channel = self.get_voice_channel(message)
+        voice_channel = await self.get_voice_channel(message)
         if voice_channel is None:
             return None
-        for voice_client in self.voice_clients:
-            if voice_client.guild == message.guild:
-                logging.info("Self in voice channel")
-                return voice_client
         return await self.connect_deaf(voice_channel)
 
     async def connect_deaf(self, channel):
@@ -296,18 +286,14 @@ class MusicBot(discord.Client):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        voice_channel = self.get_voice_channel(message)
+        voice_channel = await self.get_voice_channel(message)
         if voice_channel is None:
             # Exit early if user is not connected
             return
 
         media = None
-        url_regex = re.compile(
-            r"http[s]?://"
-            r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-        )
         try:
-            if url_regex.match(command_content):
+            if self.url_regex.match(command_content):
                 media = pafy.new(command_content)
             else:
                 search_result = VideosSearch(command_content).result()
@@ -322,7 +308,7 @@ class MusicBot(discord.Client):
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
-        self.queue.put((media, message))
+        self.song_queue.put((media, message))
 
         voice_client = await self.connect_deaf(voice_channel)
         self.voice_client = voice_client
@@ -363,7 +349,7 @@ class MusicBot(discord.Client):
         Skip to next song in queue
         """
         if self.voice_client:
-            if self.queue.empty():
+            if self.song_queue.empty():
                 await message.channel.send(":clipboard: End of queue :sparkles:")
                 self._stop()
             else:
@@ -373,19 +359,19 @@ class MusicBot(discord.Client):
         """
         Displays media that has been queued
         """
-        if self.current is None and self.queue.empty():
+        if self.current_media is None and self.song_queue.empty():
             await message.channel.send(":clipboard: Nothing in queue :sparkles:")
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
         reply += "\n```"
-        reply += f"{self.current.title}\n"
-        if self.queue.empty():
+        reply += f"{self.current_media.title}\n"
+        if self.song_queue.empty():
             reply += " -- No audio in queue --\n"
         else:
             reply += " -- Queue --\n"
 
-        for index, item in enumerate(self.queue.queue):  # Internals usage :(
+        for index, item in enumerate(self.song_queue.queue):  # Internals usage :(
             media, _ = item  # we only care about the media metadata
             reply += str(index + 1) + ": " + media.title
             reply += "\n"
@@ -423,13 +409,8 @@ class MusicBot(discord.Client):
         """
         Ring the dinkster in all voice channels
         """
-        for channel in await message.guild.fetch_channels():
-            if isinstance(channel, discord.VoiceChannel):
-                voice_client = await channel.connect()
-                audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-                voice_client.play(audio_source)
-                await asyncio.sleep(10)
-                await voice_client.disconnect()
+        audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
+        (await self.get_voice_client(message)).play(audio_source)
 
     async def joke(self, message, command_content, joke_pause=3):
         """

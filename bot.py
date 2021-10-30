@@ -18,6 +18,7 @@ class BotDispatcher(discord.Client):
     """
     Dispatcher for client instances
     """
+
     client = discord.Client()
 
     def __init__(self, *args, **kwargs):
@@ -240,10 +241,17 @@ class MusicBot:
             logging.error("message is not of type discord.Message!")
             return None
         if message.author.voice is None:
-            await message.channel.send(":studio_microphone: You are not connected to a voice channel!")
+            await message.channel.send(
+                ":studio_microphone: You are not connected to a voice channel!"
+            )
             return None
-        if self.voice_client is not None and message.author.voice.channel != self.voice_client.channel:
-            await message.channel.send(":studio_microphone: You are not in the same voice channel as me!")
+        if (
+            self.voice_client is not None
+            and message.author.voice.channel != self.voice_client.channel
+        ):
+            await message.channel.send(
+                ":studio_microphone: You are not in the same voice channel as me!"
+            )
             return None
         voice_channel = message.author.voice.channel
         return voice_channel

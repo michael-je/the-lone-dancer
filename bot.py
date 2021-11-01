@@ -256,7 +256,7 @@ class MusicBot:
         requesting_user = message.author
         if not requesting_user.voice or not requesting_user.voice.channel:
             await message.channel.send(
-                f"Please join a voice channel {requesting_user}!"
+                f":studio_microphone: {requesting_user}, please join a voice channel to start the :robot:"
             )
             return None
 

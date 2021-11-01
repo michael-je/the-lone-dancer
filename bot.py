@@ -33,8 +33,16 @@ class BotDispatcher(discord.Client):
         Login and loading handling
         """
         if message.guild not in self.clients:
-            self.clients[message.guild] = MusicBot(message.guild, self)
+            self.clients[message.guild] = MusicBot(message.guild, self.loop, self.user)
         await self.clients[message.guild].handle_message(message)
+
+    async def on_error(self, event_name, *_args, **_kwargs):
+        """
+        Notify user of error
+        """
+        if event_name == "on_message":
+            message = _args[0]
+            await message.channel.send(":robot: Something came up!")
 
 
 class MusicBot:
@@ -47,12 +55,13 @@ class MusicBot:
 
     COMMAND_PREFIX = "!"
 
-    def __init__(self, guild, dispatcher):
+    def __init__(self, guild, loop, dispatcher_user):
         self.guild = guild
-        self.dispatcher = dispatcher
+        self.loop = loop
+        self.dispatcher_user = dispatcher_user
 
         self.handlers = {}
-        self.song_queue = queue.Queue()
+        self.media_queue = queue.Queue()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
@@ -160,7 +169,7 @@ class MusicBot:
         Handler for receiving messages
         """
         self.last_text_channel = message.channel
-        if message.author == self.dispatcher.user:
+        if message.author == self.dispatcher_user:
             return
 
         if not message.content:
@@ -201,13 +210,13 @@ class MusicBot:
         """
         Switch to next song in queue
         """
-        if self.song_queue.empty():
+        if self.media_queue.empty():
             logging.info("Queue is empty, nothing to play")
             self.current_media = None
             self.voice_client.stop()
             return
 
-        media, message = self.song_queue.get()
+        media, message = self.media_queue.get()
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
@@ -222,7 +231,7 @@ class MusicBot:
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
 
-        self.dispatcher.loop.create_task(
+        self.loop.create_task(
             message.channel.send(
                 f":notes: Now Playing :notes:\n```\n{media.title}\n```"
             )
@@ -311,7 +320,7 @@ class MusicBot:
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
         # queue is unrolled.
-        self.song_queue.put((media, message))
+        self.media_queue.put((media, message))
 
         voice_client = await self.connect_deaf(voice_channel)
         self.voice_client = voice_client
@@ -352,7 +361,7 @@ class MusicBot:
         Skip to next song in queue
         """
         if self.voice_client:
-            if self.song_queue.empty():
+            if self.media_queue.empty():
                 await message.channel.send(":clipboard: End of queue :sparkles:")
                 self._stop()
             else:
@@ -362,19 +371,19 @@ class MusicBot:
         """
         Displays media that has been queued
         """
-        if self.current_media is None and self.song_queue.empty():
+        if self.current_media is None and self.media_queue.empty():
             await message.channel.send(":clipboard: Nothing in queue :sparkles:")
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
         reply += "\n```"
         reply += f"{self.current_media.title}\n"
-        if self.song_queue.empty():
+        if self.media_queue.empty():
             reply += " -- No audio in queue --\n"
         else:
             reply += " -- Queue --\n"
 
-        for index, item in enumerate(self.song_queue.queue):  # Internals usage :(
+        for index, item in enumerate(self.media_queue.queue):  # Internals usage :(
             media, _ = item  # we only care about the media metadata
             reply += str(index + 1) + ": " + media.title
             reply += "\n"

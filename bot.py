@@ -18,6 +18,7 @@ class BotDispatcher(discord.Client):
     """
     Dispatcher for client instances
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.clients = {}  # guild -> discord.Client instance
@@ -36,7 +37,9 @@ class BotDispatcher(discord.Client):
             self.clients[message.guild] = MusicBot(message.guild, self.loop, self.user)
         await self.clients[message.guild].handle_message(message)
 
-    async def on_error(self, event_name, *_args, **_kwargs):
+    async def on_error(
+        self, event_name, *_args, **_kwargs
+    ):  # pylint: disable=arguments-differ
         """
         Notify user of error
         """

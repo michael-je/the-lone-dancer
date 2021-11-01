@@ -415,10 +415,14 @@ class MusicBot:
 
     async def dinkster(self, message, _command_content):
         """
-        Ring the dinkster in all voice channels
+        Ring the dinkster in the currently connected voice channel or
+        connect to the voice channel of the requesting user.
         """
+        voice_client = await self.get_voice_client(message)
+        if not voice_client:
+            return
         audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-        (await self.get_voice_client(message)).play(audio_source)
+        voice_client.play(audio_source)
 
     async def joke(self, message, command_content, joke_pause=3):
         """

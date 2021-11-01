@@ -18,21 +18,16 @@ class BotDispatcher(discord.Client):
     """
     Dispatcher for client instances
     """
-
-    client = discord.Client()
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.clients = {}  # guild -> discord.Client instance
 
-    @client.event
     async def on_ready(self):
         """
         Login and loading handling
         """
         logging.info("we have logged in as %s", self.user)
 
-    @client.event
     async def on_message(self, message):
         """
         Login and loading handling

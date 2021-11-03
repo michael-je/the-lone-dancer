@@ -210,6 +210,9 @@ class MusicBot:
         self.after_callback_blocked = True
         self.voice_client.stop()
 
+        if self.media_queue.empty():
+            self.current_media = None
+
     def next_in_queue(self):
         """
         Switch to next song in queue
@@ -396,7 +399,8 @@ class MusicBot:
         Displays media that has been queued
         """
         if self.current_media is None and self.media_queue.empty():
-            await message.channel.send(":clipboard: Nothing in queue :sparkles:")
+            await message.channel.send(":sparkles: Nothing in queue")
+            return
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"

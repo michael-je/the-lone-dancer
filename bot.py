@@ -60,7 +60,6 @@ class MusicBot:
     COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
 
-    NO_VOICE_CLIENT_ERROR_MSG = ":kissing_heart: Start playing something first"
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
     def __init__(self, guild, loop, dispatcher_user):
@@ -288,6 +287,15 @@ class MusicBot:
 
         return self.voice_client
 
+    async def notify_if_voice_client_is_missing(self, message):
+        """
+        Returns True if a voice_client hasn't been created yet
+        """
+        if not self.voice_client:
+            await message.channel.send(":kissing_heart: Start playing something first")
+            return True
+        return False
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -341,8 +349,7 @@ class MusicBot:
         """
         Stop currently playing song
         """
-        if not self.voice_client:
-            await message.channel.send(MusicBot.NO_VOICE_CLIENT_ERROR_MSG)
+        if await self.notify_if_voice_client_is_missing(message):
             return
         if self.media_queue.empty() and not self.voice_client.is_playing():
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
@@ -355,8 +362,7 @@ class MusicBot:
         """
         Pause currently playing song
         """
-        if not self.voice_client:
-            await message.channel.send(MusicBot.NO_VOICE_CLIENT_ERROR_MSG)
+        if await self.notify_if_voice_client_is_missing(message):
             return
         if not self.voice_client.is_playing():
             await message.channel.send(
@@ -371,8 +377,7 @@ class MusicBot:
         """
         Resume playing current song
         """
-        if not self.voice_client:
-            await message.channel.send(MusicBot.NO_VOICE_CLIENT_ERROR_MSG)
+        if await self.notify_if_voice_client_is_missing(message):
             return
         if self.media_queue.empty() and not self.voice_client.is_paused():
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
@@ -393,8 +398,7 @@ class MusicBot:
         """
         Skip to next song in queue
         """
-        if not self.voice_client:
-            await message.channel.send(MusicBot.NO_VOICE_CLIENT_ERROR_MSG)
+        if await self.notify_if_voice_client_is_missing(message):
             return
 
         if self.media_queue.empty():

@@ -38,13 +38,13 @@ class BotDispatcher(discord.Client):
         await self.clients[message.guild].handle_message(message)
 
     async def on_error(
-        self, event_name, *_args, **_kwargs
+        self, event_name, *args, **_kwargs
     ):  # pylint: disable=arguments-differ
         """
         Notify user of error
         """
         if event_name == "on_message":
-            message = _args[0]
+            message = args[0]
             await message.channel.send(":robot: Something came up!")
 
 
@@ -220,7 +220,7 @@ class MusicBot:
             )
 
         if self.media_queue.empty():
-            logging.info("Queue is empty, nothing to play")
+            logging.info(":sparkles: End of queue")
             self.current_media = None
             self.voice_client.stop()
             return
@@ -288,10 +288,17 @@ class MusicBot:
         if not command_content:
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
-                return
+            elif not self.voice_client.is_playing() and not self.media_queue.empty():
+                await self.resume(message, command_content)
+            elif self.voice_client.is_playing():
+                await message.channel.send(
+                        ":unamused: Please enter something to search!"
+                )
             else:
-                await message.channel.send(":weary: Please enter something to search!")
-                return
+                await message.channel.send(
+                        ":unamused: Queue is empty - please enter something to search!"
+                )
+            return
 
         media = None
         try:
@@ -319,28 +326,53 @@ class MusicBot:
         else:
             self.next_in_queue()
 
-    async def stop(self, _message, _command_content):
+    async def stop(self, message, _command_content):
         """
         Stop currently playing song
         """
-        if self.voice_client:
-            self.voice_client.stop()
+        if not self.voice_client or self.media_queue.empty():
+                await message.channel.send(":sparkles: End of queue")
+                return
+
+        self._stop()
+
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
-    async def pause(self, _message, _command_content):
+    async def pause(self, message, _command_content):
         """
         Pause currently playing song
         """
-        if self.voice_client:
-            self.voice_client.pause()
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        try:
+            if self.voice_client.is_playing():
+                self.voice_client.pause()
+                await message.add_reaction(MusicBot.REACTION_EMOJI)
+                return
+        except AttributeError:
+            # in case self.voice_client hasn't been created yet
+            pass
+
+        await message.channel.send(
+            ":face_with_raised_eyebrow: Nothing is playing..."
+        )
 
     async def resume(self, message, _command_content):
         """
         Resume playing current song
         """
-        if self.voice_client:
+        if self.voice_client.is_playing():
+            await message.channel.send(
+                ":face_with_raised_eyebrow: Song currently playing"
+            )
+            return
+        if not self.voice_client or self.media_queue.empty():
+            await message.channel.send(":weary: Queue is empty!")
+            return
+
+        if self.voice_client.is_paused():
             self.voice_client.resume()
+        elif not self.voice_client.is_playing():
+            self.next_in_queue()
+
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def skip(self, message, _command_content):
@@ -349,10 +381,11 @@ class MusicBot:
         """
         if self.voice_client:
             if self.media_queue.empty():
-                await message.channel.send(":clipboard: End of queue :sparkles:")
+                await message.channel.send(":sparkles: End of queue")
                 self._stop()
             else:
                 self.next_in_queue()
+                await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def show_queue(self, message, _command_content):
         """

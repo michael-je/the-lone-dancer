@@ -57,7 +57,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "#"
+    COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
 
     NO_VOICE_CLIENT_ERROR_MSG = ":kissing_heart: Start playing something first"
@@ -530,7 +530,7 @@ class MusicBot:
 if __name__ == "__main__":
     print("Starting Discord bot")
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 

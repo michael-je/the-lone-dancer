@@ -38,10 +38,10 @@ class BotDispatcher(discord.Client):
         await self.clients[message.guild].handle_message(message)
 
     async def on_error(
-        self, event_name, *args, **_kwargs
+        self, event_name, *args, **kwargs
     ):  # pylint: disable=arguments-differ
         """
-        Notify user of error
+        Notify user of error and log it
         """
         if event_name == "on_message":
             message = args[0]
@@ -83,24 +83,26 @@ class MusicBot:
         self.after_callback_blocked = False
 
         # This lock should be acquired before trying to change the voice state of the bot.
-        self.voice_lock = asyncio.Lock()
+        self.command_lock = asyncio.Lock()
 
-        self.register_command("play", handler=self.play, guarded_by=self.voice_lock)
-        self.register_command("stop", handler=self.stop, guarded_by=self.voice_lock)
-        self.register_command("pause", handler=self.pause, guarded_by=self.voice_lock)
-        self.register_command("resume", handler=self.resume, guarded_by=self.voice_lock)
-        self.register_command("skip", handler=self.skip, guarded_by=self.voice_lock)
+        self.register_command("play", handler=self.play, guarded_by=self.command_lock)
+        self.register_command("stop", handler=self.stop, guarded_by=self.command_lock)
+        self.register_command("pause", handler=self.pause, guarded_by=self.command_lock)
         self.register_command(
-            "disconnect", handler=self.disconnect, guarded_by=self.voice_lock
+            "resume", handler=self.resume, guarded_by=self.command_lock
+        )
+        self.register_command("skip", handler=self.skip, guarded_by=self.command_lock)
+        self.register_command(
+            "disconnect", handler=self.disconnect, guarded_by=self.command_lock
         )
         self.register_command(
-            "queue", handler=self.show_queue, guarded_by=self.voice_lock
+            "queue", handler=self.show_queue, guarded_by=self.command_lock
         )
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
         self.register_command(
-            "dinkster", handler=self.dinkster, guarded_by=self.voice_lock
+            "dinkster", handler=self.dinkster, guarded_by=self.command_lock
         )
         self.register_command("joke", handler=self.joke)
 
@@ -301,11 +303,11 @@ class MusicBot:
                 await self.resume(message, command_content)
             elif self.voice_client.is_playing():
                 await message.channel.send(
-                        ":unamused: Please enter something to search!"
+                    ":unamused: Please enter something to search!"
                 )
             else:
                 await message.channel.send(
-                        ":unamused: Queue is empty - please enter something to search!"
+                    ":unamused: Queue is empty - please enter something to search!"
                 )
             return
 
@@ -373,7 +375,7 @@ class MusicBot:
             await message.channel.send(MusicBot.NO_VOICE_CLIENT_ERROR_MSG)
             return
         if self.media_queue.empty() and not self.voice_client.is_paused():
-            await message.channel.send(END_OF_QUEUE_MSG)
+            await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
         if self.voice_client.is_playing():
             await message.channel.send(
@@ -396,7 +398,7 @@ class MusicBot:
             return
 
         if self.media_queue.empty():
-            await message.channel.send(END_OF_QUEUE_MSG)
+            await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             self._stop()
         else:
             self.next_in_queue()
@@ -427,7 +429,7 @@ class MusicBot:
 
         await message.channel.send(reply)
 
-    async def disconnect(self, _message, _command_content):
+    async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""
         if self.voice_client:
             await self.voice_client.disconnect()

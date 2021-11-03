@@ -330,9 +330,11 @@ class MusicBot:
         """
         Stop currently playing song
         """
-        if not self.voice_client or self.media_queue.empty():
-                await message.channel.send(":sparkles: End of queue")
-                return
+        if (not self.voice_client or
+            self.media_queue.empty() and not self.voice_client.is_playing()
+        ):
+            await message.channel.send(":sparkles: End of queue")
+            return
 
         self._stop()
 
@@ -364,7 +366,9 @@ class MusicBot:
                 ":face_with_raised_eyebrow: Song currently playing"
             )
             return
-        if not self.voice_client or self.media_queue.empty():
+        if (not self.voice_client or
+            self.media_queue.empty() and not self.voice_client.is_paused()
+        ):
             await message.channel.send(":weary: Queue is empty!")
             return
 

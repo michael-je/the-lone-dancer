@@ -45,6 +45,7 @@ class BotDispatcher(discord.Client):
         """
         if event_name == "on_message":
             message = args[0]
+            logging.error((event_name, args, kwargs))
             await message.channel.send(":robot: Something came up!")
 
 
@@ -92,7 +93,9 @@ class MusicBot:
         self.register_command(
             "disconnect", handler=self.disconnect, guarded_by=self.voice_lock
         )
-        self.register_command("queue", handler=self.show_queue)
+        self.register_command(
+            "queue", handler=self.show_queue, guarded_by=self.voice_lock
+        )
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)

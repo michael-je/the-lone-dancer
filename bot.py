@@ -56,7 +56,8 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "#"
+    REACTION_EMOJI = "👍"
 
     def __init__(self, guild, loop, dispatcher_user):
         self.guild = guild
@@ -284,6 +285,14 @@ class MusicBot:
         if not voice_client:
             return
 
+        if not command_content:
+            if self.voice_client.is_paused():
+                await self.resume(message, command_content)
+                return
+            else:
+                await message.channel.send(":weary: Please enter something to search!")
+                return
+
         media = None
         try:
             if self.url_regex.match(command_content):
@@ -316,6 +325,7 @@ class MusicBot:
         """
         if self.voice_client:
             self.voice_client.stop()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def pause(self, _message, _command_content):
         """
@@ -323,13 +333,15 @@ class MusicBot:
         """
         if self.voice_client:
             self.voice_client.pause()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
-    async def resume(self, _message, _command_content):
+    async def resume(self, message, _command_content):
         """
         Resume playing current song
         """
         if self.voice_client:
             self.voice_client.resume()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def skip(self, message, _command_content):
         """
@@ -370,6 +382,7 @@ class MusicBot:
         """Disconnects the bot from the voice channel its connected to, if any."""
         if self.voice_client:
             await self.voice_client.disconnect()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def hello(self, message, _command_content):
         """
@@ -466,7 +479,7 @@ class MusicBot:
 if __name__ == "__main__":
     print("Starting Discord bot")
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 

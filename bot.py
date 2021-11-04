@@ -230,7 +230,6 @@ class MusicBot:
             )
 
         if self.media_queue.empty():
-            logging.info(":sparkles: End of queue")
             self.current_media = None
             self.voice_client.stop()
             return
@@ -243,7 +242,6 @@ class MusicBot:
         audio_source = discord.FFmpegPCMAudio(audio_url)
 
         if self.voice_client.is_playing():
-            logging.info("Pausing with HACK")
             self._stop()
 
         logging.info("Playing audio source")
@@ -289,7 +287,7 @@ class MusicBot:
 
     async def notify_if_voice_client_is_missing(self, message):
         """
-        Returns True if a voice_client hasn't been created yet
+        Returns True and notifies the user if a voice_client hasn't been created yet
         """
         if not self.voice_client:
             await message.channel.send(":kissing_heart: Start playing something first")

@@ -469,8 +469,6 @@ class MusicBot:
         def after_interrupt(_error):
             if current_source:
                 voice_client.play(current_source, after=self.after_callback)
-            else:
-                self.loop.create_task(voice_client.disconnect())
             self.interrupt_play_lock.release()
 
         current_source = voice_client.source

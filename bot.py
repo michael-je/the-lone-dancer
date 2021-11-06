@@ -465,7 +465,8 @@ class MusicBot:
         voice_client.pause()
 
         def after_interrupt(_error):
-            voice_client.play(current_source, after=self.after_callback)
+            if current_source:
+                voice_client.play(current_source, after=self.after_callback)
 
         voice_client.play(source, after=after_interrupt)
 

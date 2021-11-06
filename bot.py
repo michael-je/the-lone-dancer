@@ -470,7 +470,7 @@ class MusicBot:
             if current_source:
                 voice_client.play(current_source, after=self.after_callback)
             else:
-                voice_client.disconnect()
+                self.loop.create_task(voice_client.disconnect())
             self.interrupt_play_lock.release()
 
         current_source = voice_client.source

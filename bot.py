@@ -37,7 +37,7 @@ class BotDispatcher(discord.Client):
             self.clients[message.guild] = MusicBot(message.guild, self.loop, self.user)
         await self.clients[message.guild].handle_message(message)
 
-    async def on_error(
+    async def _on_error(
         self, event_name, *args, **kwargs
     ):  # pylint: disable=arguments-differ
         """
@@ -83,6 +83,7 @@ class MusicBot:
 
         # This lock should be acquired before trying to change the voice state of the bot.
         self.command_lock = asyncio.Lock()
+        self.interrupt_play_lock = asyncio.Lock()
 
         self.register_command("play", handler=self.play, guarded_by=self.command_lock)
         self.register_command("stop", handler=self.stop, guarded_by=self.command_lock)
@@ -464,16 +465,21 @@ class MusicBot:
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
             return
-        current_source = voice_client.source
-        voice_client.pause()
 
         def after_interrupt(_error):
             if current_source:
                 voice_client.play(current_source, after=self.after_callback)
             else:
                 voice_client.disconnect()
+            self.interrupt_play_lock.release()
 
-        voice_client.play(source, after=after_interrupt)
+        current_source = voice_client.source
+        if not self.interrupt_play_lock.locked():
+            await self.interrupt_play_lock.acquire()
+            voice_client.pause()
+            voice_client.play(source, after=after_interrupt)
+            return True
+        return False
 
     async def dinkster(self, message, _command_content):
         """
@@ -481,8 +487,8 @@ class MusicBot:
         connect to the voice channel of the requesting user.
         """
         dinkster_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-        await message.add_reaction("🤠")
-        await self.interrupt_play(message, dinkster_source)
+        if await self.interrupt_play(message, dinkster_source):
+            await message.add_reaction("🤠")
 
     async def joke(self, message, command_content, joke_pause=3):
         """

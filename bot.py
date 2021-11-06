@@ -457,13 +457,26 @@ class MusicBot:
         except ValueError:
             await message.channel.send(f":robot: {command_content} is not an integer.")
 
+    async def interrupt_play(self, message, source):
+        voice_client = await self.create_or_get_voice_client(message)
+        if not voice_client:
+            return
+        current_source = voice_client.source
+        voice_client.pause()
+        voice_client.play(
+            source,
+            after=lambda _: voice_client.play(
+                current_source, after=self.after_callback
+            ),
+        )
+
     async def dinkster(self, message, _command_content):
         """
         Ring the dinkster in the currently connected voice channel or
         connect to the voice channel of the requesting user.
         """
-        audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-        (await self.create_or_get_voice_client(message)).play(audio_source)
+        dinkster_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
+        await self.interrupt_play(message, dinkster_source)
 
     async def joke(self, message, command_content, joke_pause=3):
         """

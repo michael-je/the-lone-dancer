@@ -458,6 +458,9 @@ class MusicBot:
             await message.channel.send(f":robot: {command_content} is not an integer.")
 
     async def interrupt_play(self, message, source):
+        """
+        Pause currently playing audio c (if any), play source s, then resume c
+        """
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
             return
@@ -476,6 +479,7 @@ class MusicBot:
         connect to the voice channel of the requesting user.
         """
         dinkster_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
+        await message.add_reaction("🤠")
         await self.interrupt_play(message, dinkster_source)
 
     async def joke(self, message, command_content, joke_pause=3):

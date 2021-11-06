@@ -470,7 +470,8 @@ class MusicBot:
         def after_interrupt(_error):
             if current_source:
                 voice_client.play(current_source, after=self.after_callback)
-            voice_client.disconnect()
+            else:
+                voice_client.disconnect()
 
         voice_client.play(source, after=after_interrupt)
 

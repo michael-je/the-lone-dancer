@@ -7,6 +7,7 @@ import re
 import logging
 import asyncio
 import queue
+import traceback
 
 import discord
 import jokeapi
@@ -45,7 +46,10 @@ class BotDispatcher(discord.Client):
         """
         if event_name == "on_message":
             message = args[0]
-            logging.error((event_name, args, kwargs))
+            logging.error("Event name: %s", event_name)
+            logging.error("args: %s", args)
+            logging.error("kwargs: %s", kwargs)
+            print(traceback.format_exc())
             await message.channel.send(":robot: Something came up!")
 
 
@@ -128,8 +132,10 @@ class MusicBot:
         if guarded_by:
 
             async def guarded_handler(*args):
+                logging.info("Aquiring lock")
                 async with guarded_by:
                     return await handler(*args)
+                logging.info("Releasing lock")
 
             self.handlers[command_name] = guarded_handler
         else:
@@ -272,6 +278,7 @@ class MusicBot:
 
         requesting_user = message.author
         if not requesting_user.voice or not requesting_user.voice.channel:
+            logging.info("User %s not in a voice channel", message.author)
             await message.channel.send(
                 f":studio_microphone: {requesting_user}, "
                 + "please join a voice channel to start the :robot:"
@@ -279,10 +286,13 @@ class MusicBot:
             return None
 
         # Create a new voice client.
+        logging.info("Connecting to voice channel %s", message.author.voice.channel)
         self.voice_client = await requesting_user.voice.channel.connect()
+        logging.info("Connected to voice channel for user %s", message.author)
         await self.voice_client.guild.change_voice_state(
             channel=requesting_user.voice.channel, self_deaf=True
         )
+        logging.info("Deafened bot")
 
         return self.voice_client
 
@@ -291,6 +301,9 @@ class MusicBot:
         Returns True and notifies the user if a voice_client hasn't been created yet
         """
         if not self.voice_client:
+            logging.info(
+                "User %s asked for media action, but nothing is playing", message.author
+            )
             await message.channel.send(":kissing_heart: Start playing something first")
             return True
         return False
@@ -309,10 +322,12 @@ class MusicBot:
             elif not self.voice_client.is_playing() and not self.media_queue.empty():
                 await self.resume(message, command_content)
             elif self.voice_client.is_playing():
+                logging.info("User %s tried 'play' with no search term", message.author)
                 await message.channel.send(
                     ":unamused: Please enter something to search!"
                 )
             else:
+                logging.info("User %s tried 'play' on empty queue", message.author)
                 await message.channel.send(
                     ":unamused: Queue is empty - please enter something to search!"
                 )
@@ -321,13 +336,16 @@ class MusicBot:
         media = None
         try:
             if self.url_regex.match(command_content):
+                logging.info("Fetching video metadata with pafy")
                 media = pafy.new(command_content)
             else:
+                logging.info("Fetching search results with pafy")
                 search_result = VideosSearch(command_content).result()
                 media = pafy.new(search_result["result"][0]["id"])
-        except KeyError:
+        except KeyError as err:
             # In rare cases we get an error processing media, e.g. when vid has no likes
             # KeyError: 'like_count'
+            logging.error(err)
             await message.channel.send(":robot: Error getting media data :robot:")
 
         logging.info("Media found:\n%s", media)
@@ -338,10 +356,12 @@ class MusicBot:
         self.media_queue.put((media, message))
 
         if voice_client.is_playing():
+            logging.info("Added media to queue")
             await message.channel.send(
                 f":clipboard: Added to Queue\n```\n{media.title}\n```"
             )
         else:
+            logging.info("Playing media")
             self.next_in_queue()
 
     async def stop(self, message, _command_content):
@@ -351,10 +371,12 @@ class MusicBot:
         if await self.notify_if_voice_client_is_missing(message):
             return
         if self.media_queue.empty() and not self.voice_client.is_playing():
+            logging.info("User %s stopped on empty non-playing queue", message.author)
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
 
         self._stop()
+        logging.info("Stopped media for user %s", message.author)
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def pause(self, message, _command_content):
@@ -364,12 +386,16 @@ class MusicBot:
         if await self.notify_if_voice_client_is_missing(message):
             return
         if not self.voice_client.is_playing():
+            logging.info(
+                "User %s tried 'pause' when nothing is playing", message.author
+            )
             await message.channel.send(
                 ":face_with_raised_eyebrow: Nothing is playing..."
             )
             return
 
         self.voice_client.pause()
+        logging.info("Paused media for user %s", message.author)
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def resume(self, message, _command_content):
@@ -379,17 +405,26 @@ class MusicBot:
         if await self.notify_if_voice_client_is_missing(message):
             return
         if self.media_queue.empty() and not self.voice_client.is_paused():
+            logging.info(
+                "User %s requested 'resume' but queue is empty", message.author
+            )
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
         if self.voice_client.is_playing():
+            logging.info(
+                "User %s requested 'resume' something is already playing",
+                message.author,
+            )
             await message.channel.send(
                 ":face_with_raised_eyebrow: Song currently playing"
             )
             return
 
         if self.voice_client.is_paused():
+            logging.info("Resuming for user %s", message.author)
             self.voice_client.resume()
         elif not self.voice_client.is_playing():
+            logging.info("Resuming for user %s (next_in_queue)", message.author)
             self.next_in_queue()
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 

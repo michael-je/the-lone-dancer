@@ -463,12 +463,11 @@ class MusicBot:
             return
         current_source = voice_client.source
         voice_client.pause()
-        voice_client.play(
-            source,
-            after=lambda _: voice_client.play(
-                current_source, after=self.after_callback
-            ),
-        )
+
+        def after_dinkster(_error):
+            voice_client.play(current_source, after=self.after_callback)
+
+        voice_client.play(source, after=after_dinkster)
 
     async def dinkster(self, message, _command_content):
         """

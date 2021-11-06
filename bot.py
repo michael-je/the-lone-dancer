@@ -81,7 +81,8 @@ class MusicBot:
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
 
-        # This lock should be acquired before trying to change the voice state of the bot.
+        # This lock should be acquired before trying to change the voice state of the
+        # bot
         self.command_lock = asyncio.Lock()
 
         self.register_command("play", handler=self.play, guarded_by=self.command_lock)
@@ -163,7 +164,7 @@ class MusicBot:
                 f" '{MusicBot.COMMAND_PREFIX}'"
             )
 
-        prefix_end = re.match(self.COMMAND_PREFIX, message_content).end()
+        prefix_end = len(self.COMMAND_PREFIX)
         content_split = message_content[prefix_end:].split(" ", 1)
         command_name = content_split[0]
         command_content = ""

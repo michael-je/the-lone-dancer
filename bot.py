@@ -61,7 +61,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
@@ -99,9 +99,8 @@ class MusicBot:
         self.register_command(
             "disconnect", handler=self.disconnect, guarded_by=self.command_lock
         )
-        self.register_command(
-            "queue", handler=self.show_queue, guarded_by=self.command_lock
-        )
+        self.register_command("queue", handler=self.show_queue)
+        self.register_command("nowplaying", handler=self.show_current)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -442,18 +441,29 @@ class MusicBot:
             self.next_in_queue()
             await message.add_reaction(MusicBot.REACTION_EMOJI)
 
-    async def show_queue(self, message, _command_content):
+    async def show_current(self, message, _command_content):
         """
         Displays media that has been queued
         """
         if self.current_media is None and self.media_queue.empty():
             await message.channel.send(":sparkles: Nothing in queue")
-            return
+            return False
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
-        reply += "\n```"
+        reply += "```\n"
         reply += f"{self.current_media.title}\n"
+        reply += "```"
+        await message.channel.send(reply)
+        return True
+
+    async def show_queue(self, message, _command_content):
+        """
+        Displays media that has been queued
+        """
+        await self.show_current(message, _command_content)
+
+        reply = "```\n"
         if self.media_queue.empty():
             reply += " -- No audio in queue --\n"
         else:

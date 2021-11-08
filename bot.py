@@ -37,7 +37,7 @@ class BotDispatcher(discord.Client):
             self.clients[message.guild] = MusicBot(message.guild, self.loop, self.user)
         await self.clients[message.guild].handle_message(message)
 
-    async def _on_error(
+    async def on_error(
         self, event_name, *args, **kwargs
     ):  # pylint: disable=arguments-differ
         """
@@ -57,7 +57,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"

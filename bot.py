@@ -101,6 +101,7 @@ class MusicBot:
         )
         self.register_command("queue", handler=self.show_queue)
         self.register_command("nowplaying", handler=self.show_current)
+        self.register_command("source", handler=self.show_source)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -443,7 +444,7 @@ class MusicBot:
 
     async def show_current(self, message, _command_content):
         """
-        Displays media that has been queued
+        Displays the currently playing song
         """
         if self.current_media is None and self.media_queue.empty():
             await message.channel.send(":sparkles: Nothing in queue")
@@ -476,6 +477,12 @@ class MusicBot:
         reply += "```"
 
         await message.channel.send(reply)
+
+    async def show_source(self, message, _command_content):
+        """
+        Show the link to the currently playing media
+        """
+        await message.channel.send(f"https://youtu.be/{self.current_media.videoid}")
 
     async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""

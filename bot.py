@@ -96,6 +96,7 @@ class MusicBot:
             "resume", handler=self.resume, guarded_by=self.command_lock
         )
         self.register_command("skip", handler=self.skip, guarded_by=self.command_lock)
+        self.register_command("next", handler=self.skip, guarded_by=self.command_lock)
         self.register_command(
             "disconnect", handler=self.disconnect, guarded_by=self.command_lock
         )

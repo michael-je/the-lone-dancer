@@ -466,18 +466,27 @@ class MusicBot:
         if not voice_client:
             return
 
-        def after_interrupt(_error):
-            if current_source:
-                voice_client.play(current_source, after=self.after_callback)
-            self.interrupt_play_lock.release()
+        class AfterInterrupt:
+            def __init__(self, voice_client, source, after_callback):
+                self.voice_client = voice_client
+                self.source = source
+                self.after_callback = after_callback
+
+            def __call__(self, *_args):
+                if self.source:
+                    self.voice_client.play(self.source, after=self.after_callback)
 
         current_source = voice_client.source
-        if not self.interrupt_play_lock.locked():
-            await self.interrupt_play_lock.acquire()
-            voice_client.pause()
-            voice_client.play(source, after=after_interrupt)
-            return True
-        return False
+        voice_client.pause()
+        voice_client.play(
+            source,
+            after=AfterInterrupt(
+                voice_client,
+                current_source,
+                self.after_callback,
+            ),
+        )
+        return True
 
     async def dinkster(self, message, _command_content):
         """

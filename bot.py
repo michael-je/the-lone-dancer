@@ -39,7 +39,7 @@ class BotDispatcher(discord.Client):
 
     async def on_error(
         self, event_name, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    ):  # pylint: disable=arguments-differ,no-self-use
         """
         Notify user of error and log it
         """

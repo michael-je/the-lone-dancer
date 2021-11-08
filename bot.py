@@ -100,6 +100,9 @@ class MusicBot:
         self.register_command(
             "disconnect", handler=self.disconnect, guarded_by=self.command_lock
         )
+        self.register_command(
+            "clear", handler=self.clear_queue, guarded_by=self.command_lock
+        )
         self.register_command("queue", handler=self.show_queue)
         self.register_command("nowplaying", handler=self.show_current)
         self.register_command("source", handler=self.show_source)
@@ -442,6 +445,16 @@ class MusicBot:
         else:
             self.next_in_queue()
             await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def clear_queue(self, message, _command_content):
+        """
+        Stop current song and remove everything from queue
+        """
+        while not self.media_queue.empty():
+            self.media_queue.get()
+
+        self._stop()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def show_current(self, message, _command_content):
         """

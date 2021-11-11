@@ -40,7 +40,7 @@ class BotDispatcher(discord.Client):
 
     async def on_error(
         self, event_name, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    ):  # pylint: disable=arguments-differ,no-self-use
         """
         Notify user of error and log it
         """
@@ -60,9 +60,11 @@ class MusicBot:
 
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-public-methods
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
+    DOCS_URL = "github.com/michael-je/the-lone-dancer"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -106,6 +108,7 @@ class MusicBot:
         self.register_command("queue", handler=self.show_queue)
         self.register_command("nowplaying", handler=self.show_current)
         self.register_command("source", handler=self.show_source)
+        self.register_command("help", handler=self.show_help)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -490,6 +493,52 @@ class MusicBot:
             reply += "\n"
         reply += "```"
 
+        await message.channel.send(reply)
+
+    async def show_help(self, message, _command_content):
+        """
+        Show link to full documentation
+        """
+        p = self.COMMAND_PREFIX  # pylint: disable=invalid-name
+        reply = "```\n"
+
+        reply += f"{p}play <URL>          "
+        reply += "-> Play audio from URL\n"
+        reply += "\n"
+
+        reply += f"{p}play <playlist URL> "
+        reply += "-> Play all songs from playlist\n"
+        reply += "\n"
+
+        reply += f"{p}play <search term>  "
+        reply += "-> Search youtube for the term and play the first video\n"
+        reply += "\n"
+
+        reply += f"{p}pause               "
+        reply += "-> Pause current song\n"
+        reply += "\n"
+
+        reply += f"{p}stop                "
+        reply += "-> Stop and remove current song from queue\n"
+        reply += "\n"
+
+        reply += f"{p}next/skip           "
+        reply += "-> Skip to next song\n"
+        reply += "\n"
+
+        reply += f"{p}queue               "
+        reply += "-> Show the current queue\n"
+        reply += "\n"
+
+        reply += f"{p}nowplaying          "
+        reply += "-> Show the currently playing song\n"
+        reply += "\n"
+
+        reply += f"{p}source              "
+        reply += "-> Show the link to the currently playing song\n"
+
+        reply += "```\n"
+        reply += f"For full documentation: `{self.DOCS_URL}`"
         await message.channel.send(reply)
 
     async def show_source(self, message, _command_content):

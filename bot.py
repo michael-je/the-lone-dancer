@@ -7,6 +7,8 @@ import re
 import logging
 import asyncio
 import queue
+import collections
+import random
 
 import discord
 import jokeapi
@@ -47,6 +49,36 @@ class BotDispatcher(discord.Client):
             message = args[0]
             logging.error((event_name, args, kwargs))
             await message.channel.send(":robot: Something came up!")
+
+
+class AfterInterrupt:
+    """Class for continuing playback after interrupt"""
+
+    # pylint: disable=too-few-public-methods
+
+    stack = None
+
+    def __init__(self, voice_client, source, after_callback):
+        self.voice_client = voice_client
+        self.source = source
+        self.after_callback = after_callback
+        self.name = random.random()
+        if AfterInterrupt.stack is None:
+            # AfterInterrupt.stack = collections.deque([after_callback])
+            AfterInterrupt.stack = collections.deque()
+        AfterInterrupt.stack.append(self)
+
+    def __repr__(self, *_args):
+        return f"dinkster-{self.name}"
+
+    def __call__(self, *_args):
+        logging.info("AfterInterrupt %s, with source %s", self, self.source)
+        logging.info("AfterInterrupt.stack: %s", AfterInterrupt.stack)
+        if self.source:
+            after = self.after_callback
+            if len(AfterInterrupt.stack) > 0:
+                after = AfterInterrupt.stack.pop()
+            self.voice_client.play(self.source, after=after)
 
 
 class MusicBot:
@@ -465,16 +497,6 @@ class MusicBot:
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
             return
-
-        class AfterInterrupt:
-            def __init__(self, voice_client, source, after_callback):
-                self.voice_client = voice_client
-                self.source = source
-                self.after_callback = after_callback
-
-            def __call__(self, *_args):
-                if self.source:
-                    self.voice_client.play(self.source, after=self.after_callback)
 
         current_source = voice_client.source
         voice_client.pause()

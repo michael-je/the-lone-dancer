@@ -105,7 +105,9 @@ class MusicBot:
         self.register_command(
             "clear", handler=self.clear_queue, guarded_by=self.command_lock
         )
-        self.register_command("queue", handler=self.show_queue)
+        self.register_command(
+            "queue", handler=self.show_queue, guarded_by=self.command_lock
+        )
         self.register_command("nowplaying", handler=self.show_current)
         self.register_command("source", handler=self.show_source)
         self.register_command("help", handler=self.show_help)

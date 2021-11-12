@@ -102,7 +102,7 @@ class MusicBot:
         self.register_command(
             "queue", handler=self.show_queue, guarded_by=self.command_lock
         )
-        self.register_command( "move", handler=self.move, guarded_by=self.command_lock)
+        self.register_command("move", handler=self.move, guarded_by=self.command_lock)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -469,9 +469,20 @@ class MusicBot:
         await message.channel.send(reply)
 
     async def move(self, message, _command_content):
+        """
+        Moves the bot to the voice channel that the message author is currently
+        connected to.
+        """
         if not self.voice_client:
             return
+        if message.author.voice.channel is self.voice_client.channel:
+            await message.channel.send(
+                ":relieved: Bot is already in your voice channel"
+            )
+            return
+
         await self.voice_client.move_to(message.author.voice.channel)
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""

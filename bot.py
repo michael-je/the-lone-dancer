@@ -61,7 +61,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
@@ -102,6 +102,7 @@ class MusicBot:
         self.register_command(
             "queue", handler=self.show_queue, guarded_by=self.command_lock
         )
+        self.register_command( "move", handler=self.move, guarded_by=self.command_lock)
 
         self.register_command("hello", handler=self.hello)
         self.register_command("countdown", handler=self.countdown)
@@ -467,10 +468,17 @@ class MusicBot:
 
         await message.channel.send(reply)
 
+    async def move(self, message, _command_content):
+        if not self.voice_client:
+            return
+        await self.voice_client.move_to(message.author.voice.channel)
+
     async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""
         if self.voice_client:
+            self._stop()
             await self.voice_client.disconnect()
+            self.voice_client = None
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def hello(self, message, _command_content):

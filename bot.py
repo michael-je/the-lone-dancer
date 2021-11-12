@@ -473,8 +473,13 @@ class MusicBot:
         Moves the bot to the voice channel that the message author is currently
         connected to.
         """
-        if not await self.create_or_get_voice_client(message):
+        if await self.notify_if_voice_client_is_missing(message):
             return
+
+        if not message.author.voice:
+            await message.channel.send(":thinking: You're not in a voice channel")
+            return
+
         if message.author.voice.channel == self.voice_client.channel:
             await message.channel.send(
                 ":relieved: Bot is already in your voice channel"

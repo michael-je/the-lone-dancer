@@ -475,7 +475,7 @@ class MusicBot:
         """
         if not await self.create_or_get_voice_client(message):
             return
-        if message.author.voice.channel is self.voice_client.channel:
+        if message.author.voice.channel == self.voice_client.channel:
             await message.channel.send(
                 ":relieved: Bot is already in your voice channel"
             )

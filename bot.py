@@ -61,7 +61,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "-"
+    COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"

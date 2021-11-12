@@ -8,8 +8,10 @@ import logging
 import asyncio
 import queue
 import traceback
+import time
 
 import discord
+from discord.ext import tasks
 import jokeapi
 import pafy
 from youtubesearchpython import VideosSearch
@@ -63,6 +65,8 @@ class MusicBot:
 
     COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
+    DISCONNECT_STOP_TIMER = 60
+    DISCONNECT_PAUSE_TIMER = 600
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -76,6 +80,7 @@ class MusicBot:
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
+        self.last_command_time = time.time()
 
         self.url_regex = re.compile(
             r"http[s]?://"
@@ -109,6 +114,8 @@ class MusicBot:
             "dinkster", handler=self.dinkster, guarded_by=self.command_lock
         )
         self.register_command("joke", handler=self.joke)
+
+        self.disconnect_checker.start()  # pylint: disable=no-member
 
     def register_command(
         self, command_name, handler=None, guarded_by: asyncio.Lock = None
@@ -204,6 +211,7 @@ class MusicBot:
             return await message.channel.send(f":robot: {error_msg}")
 
         # Execute the command.
+        self.last_command_time = time.time()
         await handler(message, command_content)
 
     def after_callback(self, _):
@@ -295,6 +303,31 @@ class MusicBot:
         logging.info("Deafened bot")
 
         return self.voice_client
+
+    @tasks.loop(seconds=2)
+    async def disconnect_checker(self):
+        """
+        Checks every few seconds whether the voice_client is playing something in a
+        voice channel. If it's not then the bot will be automatically disconnected.
+        """
+        if self.voice_client and not self.voice_client.is_playing():
+            async with self.command_lock:
+                time_since_last_command = time.time() - self.last_command_time
+
+                if (
+                    self.voice_client.is_paused()
+                    and time_since_last_command < MusicBot.DISCONNECT_PAUSE_TIMER
+                ):
+                    return
+
+                if time_since_last_command < MusicBot.DISCONNECT_STOP_TIMER:
+                    return
+
+                self._stop()
+                await self.voice_client.disconnect()
+                self.voice_client = None
+
+        await asyncio.sleep(5)
 
     async def notify_if_voice_client_is_missing(self, message):
         """
@@ -470,7 +503,9 @@ class MusicBot:
     async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""
         if self.voice_client:
+            self._stop()
             await self.voice_client.disconnect()
+            self.voice_client = None
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def hello(self, message, _command_content):

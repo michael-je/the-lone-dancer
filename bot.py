@@ -311,18 +311,18 @@ class MusicBot:
         voice channel. If it's not then the bot will be automatically disconnected.
         """
         if self.voice_client and not self.voice_client.is_playing():
+            time_since_last_command = time.time() - self.last_command_time
+
+            if (
+                self.voice_client.is_paused()
+                and time_since_last_command < MusicBot.DISCONNECT_PAUSE_TIMER
+            ):
+                return
+
+            if time_since_last_command < MusicBot.DISCONNECT_STOP_TIMER:
+                return
+
             async with self.command_lock:
-                time_since_last_command = time.time() - self.last_command_time
-
-                if (
-                    self.voice_client.is_paused()
-                    and time_since_last_command < MusicBot.DISCONNECT_PAUSE_TIMER
-                ):
-                    return
-
-                if time_since_last_command < MusicBot.DISCONNECT_STOP_TIMER:
-                    return
-
                 self._stop()
                 await self.voice_client.disconnect()
                 self.voice_client = None

@@ -507,9 +507,10 @@ class MusicBot:
         reply += "-> Play audio from URL\n"
         reply += "\n"
 
-        reply += f"{p}play <playlist URL> "
-        reply += "-> Play all songs from playlist\n"
-        reply += "\n"
+        # To be implemented
+        # reply += f"{p}play <playlist URL> "
+        # reply += "-> Play all songs from playlist\n"
+        # reply += "\n"
 
         reply += f"{p}play <search term>  "
         reply += "-> Search youtube for the term and play the first video\n"

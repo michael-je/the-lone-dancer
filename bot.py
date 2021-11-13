@@ -65,8 +65,8 @@ class MusicBot:
 
     COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
-    DISCONNECT_STOP_TIMER = 60
-    DISCONNECT_PAUSE_TIMER = 600
+    DISCONNECT_STOP_TIMER = 3
+    DISCONNECT_PAUSE_TIMER = 5
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -310,22 +310,24 @@ class MusicBot:
         Checks every few seconds whether the voice_client is playing something in a
         voice channel. If it's not then the bot will be automatically disconnected.
         """
-        if self.voice_client and not self.voice_client.is_playing():
-            time_since_last_command = time.time() - self.last_command_time
+        if not self.voice_client or self.voice_client.is_playing():
+            return
 
-            if (
-                self.voice_client.is_paused()
-                and time_since_last_command < MusicBot.DISCONNECT_PAUSE_TIMER
-            ):
-                return
+        time_since_last_command = time.time() - self.last_command_time
 
-            if time_since_last_command < MusicBot.DISCONNECT_STOP_TIMER:
-                return
+        if (
+            self.voice_client.is_paused()
+            and time_since_last_command < MusicBot.DISCONNECT_PAUSE_TIMER
+        ):
+            return
 
-            async with self.command_lock:
-                self._stop()
-                await self.voice_client.disconnect()
-                self.voice_client = None
+        if time_since_last_command < MusicBot.DISCONNECT_STOP_TIMER:
+            return
+
+        async with self.command_lock:
+            self._stop()
+            await self.voice_client.disconnect()
+            self.voice_client = None
 
     async def notify_if_voice_client_is_missing(self, message):
         """

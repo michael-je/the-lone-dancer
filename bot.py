@@ -327,8 +327,6 @@ class MusicBot:
                 await self.voice_client.disconnect()
                 self.voice_client = None
 
-        await asyncio.sleep(5)
-
     async def notify_if_voice_client_is_missing(self, message):
         """
         Returns True and notifies the user if a voice_client hasn't been created yet

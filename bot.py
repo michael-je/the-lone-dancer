@@ -51,7 +51,9 @@ class BotDispatcher(discord.Client):
 
 
 class AfterInterrupt:
-    """Class for continuing playback after interrupt"""
+    """
+    Class for continuing playback after interrupt
+    """
 
     # pylint: disable=too-few-public-methods
 

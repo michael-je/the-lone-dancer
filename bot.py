@@ -467,7 +467,7 @@ class MusicBot:
         """
         if self.current_media is None and self.media_queue.empty():
             await message.channel.send(":sparkles: Nothing in queue")
-            return False
+            return
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
@@ -475,7 +475,6 @@ class MusicBot:
         reply += f"{self.current_media.title}\n"
         reply += "```"
         await message.channel.send(reply)
-        return True
 
     async def show_queue(self, message, _command_content):
         """

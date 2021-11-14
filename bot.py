@@ -11,7 +11,7 @@ import queue
 import discord
 import jokeapi
 import pafy
-from youtubesearchpython import VideosSearch
+import youtubesearchpython
 
 
 class BotDispatcher(discord.Client):
@@ -202,6 +202,9 @@ class MusicBot:
         self.after_callback_blocked = True
         self.voice_client.stop()
 
+    def create_audio_source(self, audio_url):
+        return discord.FFmpegPCMAudio(audio_url)
+
     def next_in_queue(self):
         """
         Switch to next song in queue
@@ -222,7 +225,7 @@ class MusicBot:
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
         audio_url = media.getbestaudio().url
-        audio_source = discord.FFmpegPCMAudio(audio_url)
+        audio_source = self.create_audio_source(audio_url)
 
         if self.voice_client.is_playing():
             logging.info("Pausing with HACK")
@@ -269,6 +272,12 @@ class MusicBot:
 
         return self.voice_client
 
+    def pafy_search(self, search_str):
+        return pafy.new(search_str)
+
+    def youtube_search(self, search_str):
+        return youtubesearchpython.VideosSearch(search_str).result()
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -280,10 +289,10 @@ class MusicBot:
         media = None
         try:
             if self.url_regex.match(command_content):
-                media = pafy.new(command_content)
+                media = self.pafy_search(command_content)
             else:
-                search_result = VideosSearch(command_content).result()
-                media = pafy.new(search_result["result"][0]["id"])
+                search_result = self.youtube_search(command_content)
+                media = self.pafy_search(search_result["result"][0]["id"])
         except KeyError:
             # In rare cases we get an error processing media, e.g. when vid has no likes
             # KeyError: 'like_count'

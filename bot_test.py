@@ -54,7 +54,7 @@ def create_mock_author(name="default_author", voice_state=None):
     author.author_str = name
 
     def author_eq(self, other_author):
-        return self.author_str == other_author
+        return self.author_str == other_author.author_str
 
     author.__eq__ = author_eq
 

@@ -9,6 +9,7 @@ import bot
 
 class MockVoiceClient:
     """The mock version of a Discord VoiceClient"""
+
     def __init__(self):
         self.after_callback = None
         self.current_audio_source = None
@@ -81,6 +82,7 @@ def create_mock_message(
 
 class MusicBotTest(unittest.IsolatedAsyncioTestCase):
     """MusicBot test suite"""
+
     async def asyncSetUp(self):
         # pylint: disable=attribute-defined-outside-init
 
@@ -90,7 +92,9 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         self.guild_ = mock.Mock()
 
-        self.music_bot_ = bot.MusicBot(self.guild_, self.dispatcher_.loop, self.dispatcher_.user)
+        self.music_bot_ = bot.MusicBot(
+            self.guild_, self.dispatcher_.loop, self.dispatcher_.user
+        )
         self.music_bot_.pafy_search = mock.Mock()
         self.music_bot_.youtube_search = mock.MagicMock()
         self.mock_audio_source_ = mock.Mock()

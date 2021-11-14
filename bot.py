@@ -6,6 +6,7 @@ import os
 import re
 import logging
 import asyncio
+import collections
 import queue
 import traceback
 
@@ -40,7 +41,7 @@ class BotDispatcher(discord.Client):
 
     async def on_error(
         self, event_name, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    ):  # pylint: disable=arguments-differ,no-self-use
         """
         Notify user of error and log it
         """
@@ -53,6 +54,28 @@ class BotDispatcher(discord.Client):
             await message.channel.send(":robot: Something came up!")
 
 
+class AfterInterrupt:
+    """
+    Class for continuing playback after interrupt
+    """
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self, voice_client, source, after_callback, stack):
+        self.voice_client = voice_client
+        self.source = source
+        self.after_callback = after_callback
+        self.stack = stack
+        self.stack.append(self)
+
+    def __call__(self, *_args):
+        if self.source:
+            after = self.after_callback
+            if len(self.stack) > 0:
+                after = self.stack.pop()
+            self.voice_client.play(self.source, after=after)
+
+
 class MusicBot:
     """
     The main bot functionality
@@ -61,7 +84,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "!"
+    COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
@@ -88,6 +111,7 @@ class MusicBot:
         # This lock should be acquired before trying to change the voice state of the
         # bot
         self.command_lock = asyncio.Lock()
+        self.interrupt_play_stack = collections.deque()
 
         self.register_command("play", handler=self.play, guarded_by=self.command_lock)
         self.register_command("stop", handler=self.stop, guarded_by=self.command_lock)
@@ -517,13 +541,35 @@ class MusicBot:
         except ValueError:
             await message.channel.send(f":robot: {command_content} is not an integer.")
 
+    async def interrupt_play(self, message, source):
+        """
+        Pause currently playing audio c (if any), play source s, then resume c
+        """
+        voice_client = await self.create_or_get_voice_client(message)
+        if not voice_client:
+            return
+
+        current_source = voice_client.source
+        voice_client.pause()
+        voice_client.play(
+            source,
+            after=AfterInterrupt(
+                voice_client,
+                current_source,
+                self.after_callback,
+                self.interrupt_play_stack,
+            ),
+        )
+        return True
+
     async def dinkster(self, message, _command_content):
         """
         Ring the dinkster in the currently connected voice channel or
         connect to the voice channel of the requesting user.
         """
-        audio_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
-        (await self.create_or_get_voice_client(message)).play(audio_source)
+        dinkster_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
+        if await self.interrupt_play(message, dinkster_source):
+            await message.add_reaction("🤠")
 
     async def joke(self, message, command_content, joke_pause=3):
         """

@@ -74,6 +74,7 @@ class MusicBot:
         self.dispatcher_user = dispatcher_user
 
         self.handlers = {}
+        self.help_messages = {}
         self.media_queue = queue.Queue()
         self.voice_client = None
         self.current_media = None
@@ -91,36 +92,99 @@ class MusicBot:
         # bot
         self.command_lock = asyncio.Lock()
 
-        self.register_command("play", handler=self.play, guarded_by=self.command_lock)
-        self.register_command("stop", handler=self.stop, guarded_by=self.command_lock)
-        self.register_command("pause", handler=self.pause, guarded_by=self.command_lock)
         self.register_command(
-            "resume", handler=self.resume, guarded_by=self.command_lock
-        )
-        self.register_command("skip", handler=self.skip, guarded_by=self.command_lock)
-        self.register_command("next", handler=self.skip, guarded_by=self.command_lock)
-        self.register_command(
-            "disconnect", handler=self.disconnect, guarded_by=self.command_lock
+            "play",
+            handler=self.play,
+            guarded_by=self.command_lock,
+            help_message="Play audio from URL",
+            argument_name="term/url",
         )
         self.register_command(
-            "clear", handler=self.clear_queue, guarded_by=self.command_lock
+            "stop",
+            handler=self.stop,
+            guarded_by=self.command_lock,
+            help_message="Stop and remove current song from queue",
         )
         self.register_command(
-            "queue", handler=self.show_queue, guarded_by=self.command_lock
+            "pause",
+            handler=self.pause,
+            guarded_by=self.command_lock,
+            help_message="Pause current song",
         )
-        self.register_command("nowplaying", handler=self.show_current)
-        self.register_command("source", handler=self.show_source)
-        self.register_command("help", handler=self.show_help)
+        self.register_command(
+            "resume",
+            handler=self.resume,
+            guarded_by=self.command_lock,
+            help_message="Resume current song",
+        )
+        self.register_command(
+            "skip",
+            handler=self.skip,
+            guarded_by=self.command_lock,
+            help_message="Skip to next song",
+        )
+        self.register_command(
+            "next",
+            handler=self.skip,
+            guarded_by=self.command_lock,
+            help_message="Skip to next song",
+        )
+        self.register_command(
+            "disconnect",
+            handler=self.disconnect,
+            guarded_by=self.command_lock,
+            help_message="Disconnect from the current voice client",
+        )
+        self.register_command(
+            "clear",
+            handler=self.clear_queue,
+            guarded_by=self.command_lock,
+            help_message="Clear the current queue",
+        )
+        self.register_command(
+            "queue",
+            handler=self.show_queue,
+            guarded_by=self.command_lock,
+            help_message="Show the current queue",
+        )
+        self.register_command(
+            "nowplaying",
+            handler=self.show_current,
+            help_message="Show the currently playing song",
+        )
+        self.register_command(
+            "source",
+            handler=self.show_source,
+            help_message="Show the link to the currently playing song",
+        )
+        self.register_command(
+            "help",
+            handler=self.show_help,
+            help_message="Show this help message or help for given command",
+            argument_name="command",
+        )
 
-        self.register_command("hello", handler=self.hello)
-        self.register_command("countdown", handler=self.countdown)
+        self.register_command("hello", handler=self.hello, help_message="Say hello")
         self.register_command(
-            "dinkster", handler=self.dinkster, guarded_by=self.command_lock
+            "countdown",
+            handler=self.countdown,
+            help_message="Count down from 10 and explode",
         )
-        self.register_command("joke", handler=self.joke)
+        self.register_command(
+            "dinkster",
+            handler=self.dinkster,
+            guarded_by=self.command_lock,
+            help_message="Ring the dinkster in your voice channel",
+        )
+        self.register_command("joke", handler=self.joke, help_message="Tell a joke")
 
-    def register_command(
-        self, command_name, handler=None, guarded_by: asyncio.Lock = None
+    def register_command(  # pylint: disable=too-many-arguments
+        self,
+        command_name,
+        handler=None,
+        guarded_by: asyncio.Lock = None,
+        help_message: str = "",
+        argument_name: str = "",
     ):
         """
         Register a command with the name 'command_name'.
@@ -134,9 +198,22 @@ class MusicBot:
             contents of the command passed by the user.
           guarded_by: A lock which will be acquired before each call to the
             handler passed.
+          help_message: A string describing how to use the given handler.
+            Maximum 100 characters.
+          argument_name: Name of argument used in help message.
+             Requires length command_name+argument_name+3 < 20
         """
         assert handler
         assert command_name not in self.handlers
+        assert len(help_message) < 100
+        assert len(command_name) + len(argument_name) + 3 < 20
+
+        if len(argument_name) > 0:
+            argument_name = f"<{argument_name}>"
+        help_prefix = f"{self.COMMAND_PREFIX}{command_name} {argument_name}"
+        help_prefix = f"{help_prefix:<20}"
+
+        self.help_messages[command_name] = f"{help_prefix}{help_message}"
 
         if guarded_by:
 
@@ -496,49 +573,16 @@ class MusicBot:
 
         await message.channel.send(reply)
 
-    async def show_help(self, message, _command_content):
+    async def show_help(self, message, command_content):
         """
         Show link to full documentation
         """
-        p = self.COMMAND_PREFIX  # pylint: disable=invalid-name
         reply = "```\n"
-
-        reply += f"{p}play <URL>          "
-        reply += "-> Play audio from URL\n"
-        reply += "\n"
-
-        # To be implemented
-        # reply += f"{p}play <playlist URL> "
-        # reply += "-> Play all songs from playlist\n"
-        # reply += "\n"
-
-        reply += f"{p}play <search term>  "
-        reply += "-> Search youtube for the term and play the first video\n"
-        reply += "\n"
-
-        reply += f"{p}pause               "
-        reply += "-> Pause current song\n"
-        reply += "\n"
-
-        reply += f"{p}stop                "
-        reply += "-> Stop and remove current song from queue\n"
-        reply += "\n"
-
-        reply += f"{p}next/skip           "
-        reply += "-> Skip to next song\n"
-        reply += "\n"
-
-        reply += f"{p}queue               "
-        reply += "-> Show the current queue\n"
-        reply += "\n"
-
-        reply += f"{p}nowplaying          "
-        reply += "-> Show the currently playing song\n"
-        reply += "\n"
-
-        reply += f"{p}source              "
-        reply += "-> Show the link to the currently playing song\n"
-
+        if len(command_content) > 0:
+            reply += self.help_messages[command_content]
+        else:
+            for help_message in self.help_messages.values():
+                reply += f"{help_message}\n"
         reply += "```\n"
         reply += f"For full documentation: `{self.DOCS_URL}`"
         await message.channel.send(reply)

@@ -1,5 +1,6 @@
 # pylint: disable=import-error
 # pylint: disable=missing-module-docstring
+# pylint: disable=too-many-public-methods
 
 
 import os
@@ -252,6 +253,7 @@ class MusicBot:
             self.current_media = None
 
     def create_audio_source(self, audio_url):
+        """Creates an audio sorce from an audio url"""
         return discord.FFmpegPCMAudio(audio_url)
 
     def next_in_queue(self):
@@ -323,10 +325,12 @@ class MusicBot:
 
         return self.voice_client
 
-    def pafy_search(self, search_str):
-        return pafy.new(search_str)
+    def pafy_search(self, youtube_link_or_id):
+        """Search for youtube link with pafy"""
+        return pafy.new(youtube_link_or_id)
 
     def youtube_search(self, search_str):
+        """Search for search_str on youtube"""
         return youtubesearchpython.VideosSearch(search_str).result()
 
     async def notify_if_voice_client_is_missing(self, message):

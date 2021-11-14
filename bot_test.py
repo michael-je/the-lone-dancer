@@ -152,7 +152,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             f":notes: Now Playing :notes:\n```\nsong\n```"
         )
 
-    async def test_two_play_commands_queues_media(self):
+    async def test_second_play_command_queues_media(self):
         author = create_mock_author(
                 voice_state=create_mock_voice_state(channel=create_mock_voice_channel())
                 )

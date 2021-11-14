@@ -25,6 +25,7 @@ class MockVoiceClient:
         self._after_callback = None
 
     def _finish_audio_source(self, exception = None):
+        """Call this to signal that the audio source has finished"""
         self._after_callback(exception)
         self._current_audio_source = None
 
@@ -91,14 +92,14 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         self.dispatcher_.loop = asyncio.get_running_loop()
 
     async def test_ignores_own_message(self):
-        play_message = create_mock_message(
+        message = create_mock_message(
             contents="!Some bot message", author=self.dispatcher_.user
         )
 
-        await self.music_bot_.handle_message(play_message)
+        await self.music_bot_.handle_message(message)
 
         # Bot didn't respond with anything.
-        play_message.channel.send.assert_not_awaited()
+        message.channel.send.assert_not_awaited()
 
     async def test_ignores_message_without_command_prefix(self):
         ignore_message = create_mock_message(contents="Some non-command message")
@@ -115,7 +116,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         hello_message.channel.send.assert_awaited_with(":wave: Hello! default_user")
 
-    async def test_play_complains_when_user_not_in_voice_channel(self):
+    async def test_play_fails_when_user_not_in_voice_channel(self):
         play_message = create_mock_message(
             contents="!play song", author=create_mock_author()
         )

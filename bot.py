@@ -187,7 +187,12 @@ class MusicBot:
             handler=self.show_help,
             argument_name="command",
         )
-        self.register_command("move", handler=self.move, guarded_by=self.command_lock)
+        self.register_command(
+            "move",
+            help_message="Move the bot to your voice channel",
+            handler=self.move,
+            guarded_by=self.command_lock,
+        )
 
         self.register_command(
             "hello",

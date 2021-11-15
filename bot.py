@@ -14,6 +14,7 @@ import discord
 import jokeapi
 import pafy
 from youtubesearchpython import VideosSearch
+import pytube
 
 
 class BotDispatcher(discord.Client):
@@ -104,6 +105,7 @@ class MusicBot:
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
+        self.playlist_regex = re.compile(r"\b(?:play)?list\b\=(\w+)")
 
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
@@ -252,7 +254,7 @@ class MusicBot:
         if self.media_queue.empty():
             self.current_media = None
 
-    def next_in_queue(self):
+    def next_in_queue(self, notify=True):
         """
         Switch to next song in queue
         """
@@ -280,11 +282,12 @@ class MusicBot:
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
 
-        self.loop.create_task(
-            message.channel.send(
-                f":notes: Now Playing :notes:\n```\n{media.title}\n```"
+        if notify:
+            self.loop.create_task(
+                message.channel.send(
+                    f":notes: Now Playing :notes:\n```\n{media.title}\n```"
+                )
             )
-        )
 
     async def create_or_get_voice_client(self, message):
         """Get a voice client to play audio.
@@ -333,6 +336,32 @@ class MusicBot:
             return True
         return False
 
+    async def playlist(self, message, command_content):
+        """Play a playlist"""
+        logging.info("Fetching playlist for user %s", message.author)
+        playlist = pytube.Playlist(command_content)
+        added_videos = 0
+        failed_videos = 0
+        for video in playlist:
+            try:
+                media = pafy.new(video)
+            except KeyError as err:
+                logging.error(err)
+                failed_videos += 1
+                continue
+            self.media_queue.put((media, message))
+            added_videos += 1
+            if added_videos == 1:
+                self.next_in_queue(notify=False)
+                await message.channel.send(
+                    f":notes: Now Playing :notes:\n```\n{media.title}\n```"
+                )
+        logging.info("%d items added to queue, %d failed", added_videos, failed_videos)
+        await message.channel.send(
+            f":clipboard: Added {added_videos} of "
+            f"{added_videos+failed_videos} songs to queue :notes:"
+        )
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -342,6 +371,7 @@ class MusicBot:
             return
 
         if not command_content:
+            # No search term/url
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
             elif not self.voice_client.is_playing() and not self.media_queue.empty():
@@ -358,12 +388,18 @@ class MusicBot:
                 )
             return
 
+        if len(re.findall(self.playlist_regex, command_content)) > 0:
+            await self.playlist(message, command_content)
+            return
+
         media = None
         try:
             if self.url_regex.match(command_content):
+                # url to video
                 logging.info("Fetching video metadata with pafy")
                 media = pafy.new(command_content)
             else:
+                # search term
                 logging.info("Fetching search results with pafy")
                 search_result = VideosSearch(command_content).result()
                 media = pafy.new(search_result["result"][0]["id"])

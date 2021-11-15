@@ -94,96 +94,104 @@ class MusicBot:
 
         self.register_command(
             "play",
+            help_message="Play audio from URL",
             handler=self.play,
             guarded_by=self.command_lock,
-            help_message="Play audio from URL",
             argument_name="term/url",
         )
         self.register_command(
             "stop",
+            help_message="Stop and remove current song from queue",
             handler=self.stop,
             guarded_by=self.command_lock,
-            help_message="Stop and remove current song from queue",
         )
         self.register_command(
             "pause",
+            help_message="Pause current song",
             handler=self.pause,
             guarded_by=self.command_lock,
-            help_message="Pause current song",
         )
         self.register_command(
             "resume",
+            help_message="Resume current song",
             handler=self.resume,
             guarded_by=self.command_lock,
-            help_message="Resume current song",
         )
         self.register_command(
             "skip",
+            help_message="Skip to next song",
             handler=self.skip,
             guarded_by=self.command_lock,
-            help_message="Skip to next song",
         )
         self.register_command(
             "next",
+            help_message="Skip to next song",
             handler=self.skip,
             guarded_by=self.command_lock,
-            help_message="Skip to next song",
         )
         self.register_command(
             "disconnect",
+            help_message="Disconnect from the current voice client",
             handler=self.disconnect,
             guarded_by=self.command_lock,
-            help_message="Disconnect from the current voice client",
         )
         self.register_command(
             "clear",
+            help_message="Clear the current queue",
             handler=self.clear_queue,
             guarded_by=self.command_lock,
-            help_message="Clear the current queue",
         )
         self.register_command(
             "queue",
+            help_message="Show the current queue",
             handler=self.show_queue,
             guarded_by=self.command_lock,
-            help_message="Show the current queue",
         )
         self.register_command(
             "nowplaying",
-            handler=self.show_current,
             help_message="Show the currently playing song",
+            handler=self.show_current,
         )
         self.register_command(
             "source",
-            handler=self.show_source,
             help_message="Show the link to the currently playing song",
+            handler=self.show_source,
         )
         self.register_command(
             "help",
-            handler=self.show_help,
             help_message="Show this help message or help for given command",
+            handler=self.show_help,
             argument_name="command",
         )
 
-        self.register_command("hello", handler=self.hello, help_message="Say hello")
+        self.register_command(
+            "hello",
+            help_message="Say hello",
+            handler=self.hello,
+        )
         self.register_command(
             "countdown",
-            handler=self.countdown,
             help_message="Count down from 10 and explode",
+            handler=self.countdown,
         )
         self.register_command(
             "dinkster",
+            help_message="Ring the dinkster in your voice channel",
             handler=self.dinkster,
             guarded_by=self.command_lock,
-            help_message="Ring the dinkster in your voice channel",
         )
-        self.register_command("joke", handler=self.joke, help_message="Tell a joke")
+        self.register_command(
+            "joke",
+            help_message="Tell a joke",
+            handler=self.joke,
+        )
 
     def register_command(  # pylint: disable=too-many-arguments
         self,
         command_name,
+        help_message: str,
         handler=None,
         guarded_by: asyncio.Lock = None,
-        help_message: str = "",
         argument_name: str = "",
     ):
         """

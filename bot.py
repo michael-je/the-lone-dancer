@@ -62,7 +62,7 @@ class MusicBot:
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
 
-    COMMAND_PREFIX = "-"
+    COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
     DISCONNECT_TIMER_SECONDS = 600
 
@@ -301,9 +301,9 @@ class MusicBot:
 
     async def attempt_disconnect(self):
         """
-        Should be called whenever a song finishes playing. Attempts to disconnect the
-        voice client after a set amount of time by checking whether anything is
-        currently playing.
+        Should be called whenever a song finishes playing, or when media is paused or
+        stopped. Attempts to disconnect the voice client after a set amount of time by
+        checking whether anything is currently playing.
         """
         logging.info(
             f"Will attempt to disconnect in {MusicBot.DISCONNECT_TIMER_SECONDS} seconds"

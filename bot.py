@@ -84,6 +84,7 @@ class MusicBot:
 
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-public-methods
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"

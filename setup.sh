@@ -2,6 +2,7 @@
 
 [[ -e /the-lone-dancer ]] || git clone https://github.com/michael-je/the-lone-dancer.git /the-lone-dancer
 cd /the-lone-dancer
+mkdir /the-lone-dancer/.container
 
 if [[ ! -f .env ]]
 then
@@ -12,7 +13,15 @@ then
 	sed -i "s/DISCORD_TOKEN.*/DISCORD_TOKEN=$token/" .env
 fi
 
-podman build . -t the-lone-dancer
+if [[ $(grep the-lone-dancer /etc/passwd) ]]
+then
+	echo User the-lone-dancer already exists
+else
+	useradd the-lone-dancer
+	loginctl enable-linger the-lone-dancer
+fi
+
+sudo -u the-lone-dancer podman build . -t the-lone-dancer
 
 cp the-lone-dancer*.service /etc/systemd/system/
 cp the-lone-dancer*.timer /etc/systemd/system/

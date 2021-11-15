@@ -61,6 +61,7 @@ class MusicBot:
 
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-public-methods
 
     COMMAND_PREFIX = "!"
     REACTION_EMOJI = "👍"
@@ -306,7 +307,8 @@ class MusicBot:
         checking whether anything is currently playing.
         """
         logging.info(
-            f"Will attempt to disconnect in {MusicBot.DISCONNECT_TIMER_SECONDS} seconds"
+            "Will attempt to disconnect in %s seconds",
+            MusicBot.DISCONNECT_TIMER_SECONDS,
         )
         self.last_played_time = time()
         await asyncio.sleep(MusicBot.DISCONNECT_TIMER_SECONDS)
@@ -316,7 +318,7 @@ class MusicBot:
 
         buffer = 5
         time_since_last_played = time() - self.last_played_time
-        if  time_since_last_played + buffer < self.DISCONNECT_TIMER_SECONDS:
+        if time_since_last_played + buffer < self.DISCONNECT_TIMER_SECONDS:
             return
 
         self._stop()

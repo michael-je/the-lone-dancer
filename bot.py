@@ -581,7 +581,7 @@ class MusicBot:
         if len(command_content) > 0:
             reply += self.help_messages[command_content]
         else:
-            for help_message in self.help_messages.values():
+            for _, help_message in sorted(self.help_messages.items()):
                 reply += f"{help_message}\n"
         reply += "```\n"
         reply += f"For full documentation: `{self.DOCS_URL}`"

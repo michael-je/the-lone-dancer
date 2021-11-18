@@ -499,7 +499,7 @@ class MusicBot:
             await message.channel.send(":robot: Error getting media data :robot:")
             return
 
-        logging.info("Media found:\n%s", media)
+        logging.info("Media found: %s", media.title)
 
         # We queue up a pair of the media metadata and the message context, so we can
         # continue to message the channel that this command was instanciated from as the
@@ -807,7 +807,9 @@ if __name__ == "__main__":
     print("Starting Discord bot")
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format=
+            "%(asctime)s - %(levelname)-5s - %(name)-20s - " +
+            "line %(lineno)4s in %(funcName)-20s - %(message)s"
     )
 
     # pylint: disable=invalid-name

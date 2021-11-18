@@ -30,4 +30,4 @@ jobs:
         find -name '*.py' -exec pylint {} +
     - name: Run unittests
       run: |
-        python bot_test.py
+        python -m unittest

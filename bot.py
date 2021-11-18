@@ -9,6 +9,7 @@ import asyncio
 import collections
 import queue
 import traceback
+import time
 
 import discord
 import jokeapi
@@ -88,6 +89,7 @@ class MusicBot:
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
     DOCS_URL = "github.com/michael-je/the-lone-dancer"
+    DISCONNECT_TIMER_SECONDS = 600
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -102,6 +104,7 @@ class MusicBot:
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
+        self.last_played_time = None
 
         self.url_regex = re.compile(
             r"http[s]?://"
@@ -336,7 +339,7 @@ class MusicBot:
         the music. Used as a callback for play().
         """
         if not self.after_callback_blocked:
-            # we could self.loop.create_task here if next_in_queue needs to be async
+            self.loop.create_task(self.attempt_disconnect())
             self.next_in_queue()
         else:
             self.after_callback_blocked = False
@@ -420,6 +423,29 @@ class MusicBot:
 
         return self.voice_client
 
+    async def attempt_disconnect(self):
+        """
+        Should be called whenever a song finishes playing, or when media is paused or
+        stopped. Attempts to disconnect the voice client after a set amount of time by
+        checking whether anything is currently playing.
+        """
+        logging.info(
+            "Will attempt to disconnect in %s seconds",
+            MusicBot.DISCONNECT_TIMER_SECONDS,
+        )
+        self.last_played_time = time.time()
+        await asyncio.sleep(MusicBot.DISCONNECT_TIMER_SECONDS)
+
+        if self.voice_client.is_playing():
+            return
+
+        if self.last_played_time < self.DISCONNECT_TIMER_SECONDS:
+            return
+
+        self._stop()
+        await self.voice_client.disconnect()
+        self.voice_client = None
+
     async def notify_if_voice_client_is_missing(self, message):
         """
         Returns True and notifies the user if a voice_client hasn't been created yet
@@ -471,6 +497,7 @@ class MusicBot:
             # KeyError: 'like_count'
             logging.error(err)
             await message.channel.send(":robot: Error getting media data :robot:")
+            return
 
         logging.info("Media found:\n%s", media)
 
@@ -501,6 +528,7 @@ class MusicBot:
 
         self._stop()
         logging.info("Stopped media for user %s", message.author)
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def pause(self, message, _command_content):
@@ -520,6 +548,7 @@ class MusicBot:
 
         self.voice_client.pause()
         logging.info("Paused media for user %s", message.author)
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def resume(self, message, _command_content):

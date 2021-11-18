@@ -177,7 +177,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         mock_media = mock.Mock()
         self.music_bot_.pafy_search = mock.Mock(return_value=mock_media)
-        mock_media.title.__repr__ = lambda self: "song1"
+        mock_media.title.__repr__ = lambda _: "song1"
 
         await self.music_bot_.handle_message(play_message1)
 

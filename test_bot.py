@@ -185,7 +185,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             ":notes: Now Playing :notes:\n```\nsong1\n```"
         )
 
-        mock_media.title.__repr__ = lambda self: "song2"
+        mock_media.title.__repr__ = lambda _: "song2"
         await self.music_bot_.handle_message(play_message2)
 
         play_message2.channel.send.assert_awaited_with(

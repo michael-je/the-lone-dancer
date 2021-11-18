@@ -28,6 +28,6 @@ jobs:
     - name: Lint with pylint
       run: |
         find -name '*.py' -exec pylint {} +
-    - name: Test with pytest
+    - name: Run unittests
       run: |
-        python -m pytest
+        python -m unittest

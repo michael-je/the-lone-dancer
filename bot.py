@@ -1,5 +1,6 @@
 # pylint: disable=import-error
 # pylint: disable=missing-module-docstring
+# pylint: disable=too-many-public-methods
 
 
 import os
@@ -14,7 +15,7 @@ import time
 import discord
 import jokeapi
 import pafy
-from youtubesearchpython import VideosSearch
+import youtubesearchpython
 
 
 class BotDispatcher(discord.Client):
@@ -350,9 +351,12 @@ class MusicBot:
         """
         self.after_callback_blocked = True
         self.voice_client.stop()
-
         if self.media_queue.empty():
             self.current_media = None
+
+    def create_audio_source(self, audio_url):
+        """Creates an audio sorce from an audio url"""
+        return discord.FFmpegPCMAudio(audio_url)
 
     def next_in_queue(self):
         """
@@ -373,7 +377,7 @@ class MusicBot:
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
         audio_url = media.getbestaudio().url
-        audio_source = discord.FFmpegPCMAudio(audio_url)
+        audio_source = self.create_audio_source(audio_url)
 
         if self.voice_client.is_playing():
             self._stop()
@@ -422,6 +426,14 @@ class MusicBot:
         logging.info("Deafened bot")
 
         return self.voice_client
+
+    def pafy_search(self, youtube_link_or_id):
+        """Search for youtube link with pafy"""
+        return pafy.new(youtube_link_or_id)
+
+    def youtube_search(self, search_str):
+        """Search for search_str on youtube"""
+        return youtubesearchpython.VideosSearch(search_str).result()
 
     async def attempt_disconnect(self):
         """
@@ -487,11 +499,11 @@ class MusicBot:
         try:
             if self.url_regex.match(command_content):
                 logging.info("Fetching video metadata with pafy")
-                media = pafy.new(command_content)
+                media = self.pafy_search(command_content)
             else:
                 logging.info("Fetching search results with pafy")
-                search_result = VideosSearch(command_content).result()
-                media = pafy.new(search_result["result"][0]["id"])
+                search_result = self.youtube_search(command_content)
+                media = self.pafy_search(search_result["result"][0]["id"])
         except KeyError as err:
             # In rare cases we get an error processing media, e.g. when vid has no likes
             # KeyError: 'like_count'

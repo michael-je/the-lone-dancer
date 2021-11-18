@@ -8,7 +8,7 @@ import logging
 import asyncio
 import queue
 import traceback
-from time import time
+import time
 
 import discord
 import jokeapi
@@ -310,15 +310,13 @@ class MusicBot:
             "Will attempt to disconnect in %s seconds",
             MusicBot.DISCONNECT_TIMER_SECONDS,
         )
-        self.last_played_time = time()
+        self.last_played_time = time.time()
         await asyncio.sleep(MusicBot.DISCONNECT_TIMER_SECONDS)
 
         if self.voice_client.is_playing():
             return
 
-        buffer = 5
-        time_since_last_played = time() - self.last_played_time
-        if time_since_last_played + buffer < self.DISCONNECT_TIMER_SECONDS:
+        if self.last_played_time < self.DISCONNECT_TIMER_SECONDS:
             return
 
         self._stop()
@@ -407,7 +405,7 @@ class MusicBot:
 
         self._stop()
         logging.info("Stopped media for user %s", message.author)
-        await self.attempt_disconnect()
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def pause(self, message, _command_content):
@@ -427,7 +425,7 @@ class MusicBot:
 
         self.voice_client.pause()
         logging.info("Paused media for user %s", message.author)
-        await self.attempt_disconnect()
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def resume(self, message, _command_content):

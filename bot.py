@@ -10,6 +10,7 @@ import asyncio
 import collections
 import queue
 import traceback
+import time
 
 import discord
 import jokeapi
@@ -84,9 +85,12 @@ class MusicBot:
 
     # pylint: disable=no-self-use
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-public-methods
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
+    DOCS_URL = "github.com/michael-je/the-lone-dancer"
+    DISCONNECT_TIMER_SECONDS = 600
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -96,10 +100,12 @@ class MusicBot:
         self.dispatcher_user = dispatcher_user
 
         self.handlers = {}
+        self.help_messages = {}
         self.media_queue = queue.Queue()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
+        self.last_played_time = None
 
         self.url_regex = re.compile(
             r"http[s]?://"
@@ -114,30 +120,113 @@ class MusicBot:
         self.command_lock = asyncio.Lock()
         self.interrupt_play_stack = collections.deque()
 
-        self.register_command("play", handler=self.play, guarded_by=self.command_lock)
-        self.register_command("stop", handler=self.stop, guarded_by=self.command_lock)
-        self.register_command("pause", handler=self.pause, guarded_by=self.command_lock)
         self.register_command(
-            "resume", handler=self.resume, guarded_by=self.command_lock
-        )
-        self.register_command("skip", handler=self.skip, guarded_by=self.command_lock)
-        self.register_command(
-            "disconnect", handler=self.disconnect, guarded_by=self.command_lock
+            "play",
+            help_message="Play audio from URL",
+            handler=self.play,
+            guarded_by=self.command_lock,
+            argument_name="term/url",
         )
         self.register_command(
-            "queue", handler=self.show_queue, guarded_by=self.command_lock
+            "stop",
+            help_message="Stop and remove current song from queue",
+            handler=self.stop,
+            guarded_by=self.command_lock,
         )
-        self.register_command("move", handler=self.move, guarded_by=self.command_lock)
+        self.register_command(
+            "pause",
+            help_message="Pause current song",
+            handler=self.pause,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "resume",
+            help_message="Resume current song",
+            handler=self.resume,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "skip",
+            help_message="Skip to next song",
+            handler=self.skip,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "next",
+            help_message="Skip to next song",
+            handler=self.skip,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "disconnect",
+            help_message="Disconnect from the current voice client",
+            handler=self.disconnect,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "clear",
+            help_message="Clear the current queue",
+            handler=self.clear_queue,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "queue",
+            help_message="Show the current queue",
+            handler=self.show_queue,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "nowplaying",
+            help_message="Show the currently playing song",
+            handler=self.show_current,
+        )
+        self.register_command(
+            "source",
+            help_message="Show the link to the currently playing song",
+            handler=self.show_source,
+        )
+        self.register_command(
+            "help",
+            help_message="Show this help message or help for given command",
+            handler=self.show_help,
+            argument_name="command",
+        )
+        self.register_command(
+            "move",
+            help_message="Move the bot to your voice channel",
+            handler=self.move,
+            guarded_by=self.command_lock,
+        )
 
-        self.register_command("hello", handler=self.hello)
-        self.register_command("countdown", handler=self.countdown)
         self.register_command(
-            "dinkster", handler=self.dinkster, guarded_by=self.command_lock
+            "hello",
+            help_message="Say hello",
+            handler=self.hello,
         )
-        self.register_command("joke", handler=self.joke)
+        self.register_command(
+            "countdown",
+            help_message="Count down from 10 and explode",
+            handler=self.countdown,
+        )
+        self.register_command(
+            "dinkster",
+            help_message="Ring the dinkster in your voice channel",
+            handler=self.dinkster,
+            guarded_by=self.command_lock,
+        )
+        self.register_command(
+            "joke",
+            help_message="Tell a joke",
+            handler=self.joke,
+        )
 
-    def register_command(
-        self, command_name, handler=None, guarded_by: asyncio.Lock = None
+    def register_command(  # pylint: disable=too-many-arguments
+        self,
+        command_name,
+        help_message: str,
+        handler=None,
+        guarded_by: asyncio.Lock = None,
+        argument_name: str = "",
     ):
         """
         Register a command with the name 'command_name'.
@@ -151,9 +240,22 @@ class MusicBot:
             contents of the command passed by the user.
           guarded_by: A lock which will be acquired before each call to the
             handler passed.
+          help_message: A string describing how to use the given handler.
+            Maximum 100 characters.
+          argument_name: Name of argument used in help message.
+             Requires length command_name+argument_name+3 < 20
         """
         assert handler
         assert command_name not in self.handlers
+        assert len(help_message) < 100
+        assert len(command_name) + len(argument_name) + 3 < 20
+
+        if len(argument_name) > 0:
+            argument_name = f"<{argument_name}>"
+        help_prefix = f"{self.COMMAND_PREFIX}{command_name} {argument_name}"
+        help_prefix = f"{help_prefix:<20}"
+
+        self.help_messages[command_name] = f"{help_prefix}{help_message}"
 
         if guarded_by:
 
@@ -238,7 +340,7 @@ class MusicBot:
         the music. Used as a callback for play().
         """
         if not self.after_callback_blocked:
-            # we could self.loop.create_task here if next_in_queue needs to be async
+            self.loop.create_task(self.attempt_disconnect())
             self.next_in_queue()
         else:
             self.after_callback_blocked = False
@@ -333,6 +435,29 @@ class MusicBot:
         """Search for search_str on youtube"""
         return youtubesearchpython.VideosSearch(search_str).result()
 
+    async def attempt_disconnect(self):
+        """
+        Should be called whenever a song finishes playing, or when media is paused or
+        stopped. Attempts to disconnect the voice client after a set amount of time by
+        checking whether anything is currently playing.
+        """
+        logging.info(
+            "Will attempt to disconnect in %s seconds",
+            MusicBot.DISCONNECT_TIMER_SECONDS,
+        )
+        self.last_played_time = time.time()
+        await asyncio.sleep(MusicBot.DISCONNECT_TIMER_SECONDS)
+
+        if self.voice_client.is_playing():
+            return
+
+        if self.last_played_time < self.DISCONNECT_TIMER_SECONDS:
+            return
+
+        self._stop()
+        await self.voice_client.disconnect()
+        self.voice_client = None
+
     async def notify_if_voice_client_is_missing(self, message):
         """
         Returns True and notifies the user if a voice_client hasn't been created yet
@@ -384,6 +509,7 @@ class MusicBot:
             # KeyError: 'like_count'
             logging.error(err)
             await message.channel.send(":robot: Error getting media data :robot:")
+            return
 
         logging.info("Media found:\n%s", media)
 
@@ -414,6 +540,7 @@ class MusicBot:
 
         self._stop()
         logging.info("Stopped media for user %s", message.author)
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def pause(self, message, _command_content):
@@ -433,6 +560,7 @@ class MusicBot:
 
         self.voice_client.pause()
         logging.info("Paused media for user %s", message.author)
+        self.loop.create_task(self.attempt_disconnect())
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def resume(self, message, _command_content):
@@ -479,9 +607,19 @@ class MusicBot:
             self.next_in_queue()
             await message.add_reaction(MusicBot.REACTION_EMOJI)
 
-    async def show_queue(self, message, _command_content):
+    async def clear_queue(self, message, _command_content):
         """
-        Displays media that has been queued
+        Stop current song and remove everything from queue
+        """
+        while not self.media_queue.empty():
+            self.media_queue.get()
+
+        self._stop()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def show_current(self, message, _command_content):
+        """
+        Displays the currently playing song
         """
         if self.current_media is None and self.media_queue.empty():
             await message.channel.send(":sparkles: Nothing in queue")
@@ -489,8 +627,18 @@ class MusicBot:
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
-        reply += "\n```"
+        reply += "```\n"
         reply += f"{self.current_media.title}\n"
+        reply += "```"
+        await message.channel.send(reply)
+
+    async def show_queue(self, message, _command_content):
+        """
+        Displays media that has been queued
+        """
+        await self.show_current(message, _command_content)
+
+        reply = "```\n"
         if self.media_queue.empty():
             reply += " -- No audio in queue --\n"
         else:
@@ -524,6 +672,26 @@ class MusicBot:
 
         await self.voice_client.move_to(message.author.voice.channel)
         await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def show_help(self, message, command_content):
+        """
+        Show link to full documentation
+        """
+        reply = "```\n"
+        if len(command_content) > 0:
+            reply += self.help_messages[command_content]
+        else:
+            for _, help_message in sorted(self.help_messages.items()):
+                reply += f"{help_message}\n"
+        reply += "```\n"
+        reply += f"For full documentation: `{self.DOCS_URL}`"
+        await message.channel.send(reply)
+
+    async def show_source(self, message, _command_content):
+        """
+        Show the link to the currently playing media
+        """
+        await message.channel.send(f"https://youtu.be/{self.current_media.videoid}")
 
     async def disconnect(self, message, _command_content):
         """Disconnects the bot from the voice channel its connected to, if any."""

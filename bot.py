@@ -376,6 +376,13 @@ class MusicBot:
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
+        if media.duration == "00:00:00":
+            self.loop.create_task(
+                message.channel.send("Sorry, I can't play livestreams :sob:")
+            )
+            self.next_in_queue()
+            return
+
         audio_url = media.getbestaudio().url
         audio_source = self.create_audio_source(audio_url)
 

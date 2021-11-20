@@ -451,8 +451,7 @@ class MusicBot:
         if self.voice_client.is_playing():
             return
 
-        time_since_last_played = time.time() - self.last_played_time
-        if time_since_last_played < self.DISCONNECT_TIMER_SECONDS:
+        if time.time() - self.last_played_time < self.DISCONNECT_TIMER_SECONDS:
             return
 
         self._stop()

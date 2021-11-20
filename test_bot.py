@@ -214,6 +214,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         await self.music_bot_.handle_message(play_message)
 
+        await asyncio.sleep(0.1)
+
         play_message.channel.send.assert_awaited_with(
             "Sorry, I can't play livestreams :sob:"
         )

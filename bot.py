@@ -389,7 +389,7 @@ class MusicBot:
                 )
             return
 
-        if len(re.findall(self.playlist_regex, command_content)) > 0:
+        if re.findall(self.playlist_regex, command_content):
             await self.playlist(message, command_content)
             return
 

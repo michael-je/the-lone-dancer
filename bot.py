@@ -160,10 +160,8 @@ class MusicBot:
         if guarded_by:
 
             async def guarded_handler(*args):
-                logging.info("Aquiring lock")
                 async with guarded_by:
                     return await handler(*args)
-                logging.info("Releasing lock")
 
             self.handlers[command_name] = guarded_handler
         else:
@@ -352,7 +350,7 @@ class MusicBot:
                 continue
             self.media_queue.put((media, message))
             added_videos += 1
-            if added_videos == 1:
+            if added_videos == 1 and not self.voice_client.is_playing():
                 self.next_in_queue(notify=False)
                 await message.channel.send(
                     f":notes: Now Playing :notes:\n```\n{media.title}\n```"

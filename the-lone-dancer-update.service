@@ -4,5 +4,5 @@ After=basic.target
 
 [Service]
 Type=simple
-User=the-lone-dancer
+User=root
 ExecStart=/usr/local/bin/the-lone-dancer-update.sh

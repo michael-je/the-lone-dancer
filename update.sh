@@ -1,15 +1,18 @@
 #!/bin/bash
 
 cd /the-lone-dancer
-git pull
-updated=$?
 
-if [[ $(sudo git pull) != 'Already up to date.' || $1 == '-f' ]]
+if [[ $(git pull) != 'Already up to date.' || $1 == '-f' ]]
 then
 	echo "Git repo has been updated... Rebuilding container"
-	[[ -n $(podman ps -a | grep the-lone-dancer ) ]] && podman rm the-lone-dancer
-	#podman rmi the-lone-dancer
+	if [[ -n $(podman ps -a | grep the-lone-dancer ) ]]
+	then
+		podman stop the-lone-dancer
+		podman rm the-lone-dancer
+	fi
 	podman build . -t the-lone-dancer
 	podman create --name the-lone-dancer --env-file .env -ti the-lone-dancer
 	systemctl start the-lone-dancer.service
+else
+	echo "Repository already up to date. No need to update bot."
 fi

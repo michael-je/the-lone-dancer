@@ -57,8 +57,8 @@ fi
 if [[ ! -f $ENV_FILE ]]
 then
 	# Copy env-file
-	cp .env.example .env
-	sed -i "s/DISCORD_TOKEN.*/DISCORD_TOKEN=$TOKEN/" .env
+	cp .env.example $ENV_FILE
+	sed -i "s/DISCORD_TOKEN.*/DISCORD_TOKEN=$TOKEN/" $ENV_FILE
 fi
 
 cp the-lone-dancer*.service /etc/systemd/system/

@@ -1,4 +1,6 @@
 #/bin/bash
+# Remove the bot as set up by setup.sh if you don't want it on your system
+# anymore.
 
 systemctl disable --now the-lone-dancer-update.timer
 systemctl disable --now the-lone-dancer-update.service

@@ -1,4 +1,7 @@
 #!/bin/bash
+# Fetch GitHub updates and apply them.
+# Rebuild the container using updates, but only if there were any updates.
+# This script can be run manually with the -f switch or as a systemd service.
 
 cd /the-lone-dancer
 

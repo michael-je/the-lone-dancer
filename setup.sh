@@ -1,4 +1,8 @@
 #/bin/bash
+# Set up the bot on the system as a container with auto-updates
+# from GitHub and automatic container rebuilding and restarting.
+# This script should be run interactively when setting up the bot
+# on a new system.
 
 [[ -e /the-lone-dancer ]] || git clone https://github.com/michael-je/the-lone-dancer.git /the-lone-dancer
 cd /the-lone-dancer

@@ -1,5 +1,12 @@
 # The Lone Dancer - Discord music bot
-This project is still in development. The goal is to create a simple music playing bot for our discord server. It should be able to connect to a voice channel, accept basic commands and play back audio from youtube.
+
+This is a working discord bot centered around streaming music from **YouTube** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
+
+---
+## Main features
+- Accepts links and search terms for audio streaming
+- Play, pause, skip, queue, and more!
+- Stream the audio into the voice channel you're in 🎶
 
 ---
 ## Quickstart
@@ -17,17 +24,11 @@ This project is still in development. The goal is to create a simple music playi
 		python3 bot.py
 
 ---
-## Main features
-- Accepts links and search terms for audio streaming
-- Play, pause, skip, scrub, queue, and more!
-- Stream the audio into the voice channel you're in 🎶
-
----
 ## Docker build
 Simply build and run the container:
 
-		docker build . -t the-lone-dancer:latest
-		docker run --env-file .env the-lone-dancer
+	docker build . -t the-lone-dancer:latest
+	docker run --env-file .env the-lone-dancer
 
 ---
 ## Development setup (Linux)
@@ -62,21 +63,13 @@ Simply build and run the container:
 8. Run the bot:
 
 		python3 bot.py
-9. Verify the bot is running by typing `!hello` in the discord server with the bot.
+9. Verify the bot is running by typing `-hello` in the discord server with the bot.
 
 ---
-### Next Steps
-- Figure out how to stream audio from youtube
-	- [streaming audio from youtube - stackoverflow](https://stackoverflow.com/questions/49354232/how-to-stream-audio-from-a-youtube-url-in-python-without-download)
-	- [streaming youtube LIVE into discord voice - stackoverflow](https://stackoverflow.com/questions/66610012/discord-py-streaming-youtube-live-into-voice)
-	- [voice.create_ytdl_channel() - stackoverflow](https://stackoverflow.com/questions/57946894/discord-py-voiceclient-object-has-no-attribute-create-ytdl-player)
-		- This method seems to require passing in a channel object. See info [here](https://stackoverflow.com/questions/52916317/get-the-name-of-a-channel-using-discord-py) about how to create these objects as well as getting ID's and such.
-		Note that method names in this explanation seem to be slightly outdated (server has been changed to guild, fx) - see [here](https://discordpy.readthedocs.io/en/stable/migrating.html?highlight=client%20get_server)
+## Usage
 
----
-### Useful links
-- [setting up a basic discord bot](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/)
-- [discord.py](https://github.com/Rapptz/discord.py)
-	- [documentation](https://discordpy.readthedocs.io/en/latest/quickstart.html#a-minimal-bot)
-	- [example voice bot](https://github.com/Rapptz/discord.py/blob/master/examples/basic_voice.py) *Note that this example throws a 403 error when trying to connect to youtube*
-- [The original discord music bot](https://github.com/k5van/Catharsis-Bot)
+Once the bot is up and running you can control it by sending commands to any text channel in the discord server. Commands look like: `-command`
+
+You need to be connected to a voice channel to use any of the bot's voice streaming commands.
+
+To get a list of available commands you can use the `-help` command.

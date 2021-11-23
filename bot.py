@@ -14,7 +14,7 @@ import time
 
 import discord
 import jokeapi
-import pafy
+import pafy_fixed.pafy_fixed as pafy
 import youtubesearchpython
 
 
@@ -429,7 +429,7 @@ class MusicBot:
 
     def pafy_search(self, youtube_link_or_id):
         """Search for youtube link with pafy"""
-        return pafy.new(youtube_link_or_id)
+        return pafy.new(youtube_link_or_id, gdata=False)
 
     def youtube_search(self, search_str):
         """Search for search_str on youtube"""

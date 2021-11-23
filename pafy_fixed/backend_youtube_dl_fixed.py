@@ -49,7 +49,7 @@ class YtdlPafyFixed(YtdlPafy):
         self._viewcount = self._ydl_info['view_count']
         self._likes = self._ydl_info['like_count']
         # added a default value for dislike_count
-        self._dislikes = self._ydl_info.get('dislike_count', 'N/A')
+        self._dislikes = self._ydl_info.get('dislike_count', 0)
         self._username = self._ydl_info['uploader_id']
         self._category = self._ydl_info['categories'][0] if self._ydl_info['categories'] else ''
         self._bestthumb = self._ydl_info['thumbnails'][0]['url']

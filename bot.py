@@ -430,7 +430,7 @@ class MusicBot:
     def pafy_search(self, youtube_link_or_id):
         """Search for youtube link with pafy"""
         media = pafy.new(youtube_link_or_id)
-        if media.dislikes == "N/A":
+        if media.dislikes == 0:
             logging.info("Ignoring dislike count in new media")
 
         return media

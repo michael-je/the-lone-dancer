@@ -1,4 +1,7 @@
-from pafy import *
+# pylint: skip-file
+# fmt: off
+
+from pafy.pafy import *
 
 Pafy = None
 

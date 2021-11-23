@@ -1,3 +1,6 @@
+# pylint: skip-file
+# fmt: off
+
 import sys
 import time
 import logging

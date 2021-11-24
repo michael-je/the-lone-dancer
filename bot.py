@@ -8,7 +8,6 @@ import re
 import logging
 import asyncio
 import collections
-import queue
 import traceback
 import time
 
@@ -101,7 +100,7 @@ class MusicBot:
 
         self.handlers = {}
         self.help_messages = {}
-        self.media_queue = queue.Queue()
+        self.media_deque = collections.deque()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
@@ -351,7 +350,7 @@ class MusicBot:
         """
         self.after_callback_blocked = True
         self.voice_client.stop()
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             self.current_media = None
 
     def create_audio_source(self, audio_url):
@@ -367,12 +366,12 @@ class MusicBot:
                 "Should not be called when the bot is not connected to voice!"
             )
 
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             self.current_media = None
             self.voice_client.stop()
             return
 
-        media, message = self.media_queue.get()
+        media, message = self.media_deque.popleft()
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
@@ -470,7 +469,7 @@ class MusicBot:
             return True
         return False
 
-    async def play(self, message, command_content):
+    async def play(self, message, command_content, deque_append_left=False):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
@@ -481,7 +480,7 @@ class MusicBot:
         if not command_content:
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
-            elif not self.voice_client.is_playing() and not self.media_queue.empty():
+            elif not self.voice_client.is_playing() and not len(self.media_deque) == 0:
                 await self.resume(message, command_content)
             elif self.voice_client.is_playing():
                 logging.info("User %s tried 'play' with no search term", message.author)
@@ -513,10 +512,10 @@ class MusicBot:
 
         logging.info("Media found:\n%s", media)
 
-        # We queue up a pair of the media metadata and the message context, so we can
-        # continue to message the channel that this command was instanciated from as the
-        # queue is unrolled.
-        self.media_queue.put((media, message))
+        if deque_append_left:
+            self.media_deque.appendleft((media, message))
+        else:
+            self.media_deque.append((media, message))
 
         if voice_client.is_playing():
             logging.info("Added media to queue")
@@ -533,7 +532,7 @@ class MusicBot:
         """
         if await self.notify_if_voice_client_is_missing(message):
             return
-        if self.media_queue.empty() and not self.voice_client.is_playing():
+        if len(self.media_deque) == 0 and not self.voice_client.is_playing():
             logging.info("User %s stopped on empty non-playing queue", message.author)
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
@@ -569,7 +568,7 @@ class MusicBot:
         """
         if await self.notify_if_voice_client_is_missing(message):
             return
-        if self.media_queue.empty() and not self.voice_client.is_paused():
+        if len(self.media_deque) == 0 and not self.voice_client.is_paused():
             logging.info(
                 "User %s requested 'resume' but queue is empty", message.author
             )
@@ -600,7 +599,7 @@ class MusicBot:
         if await self.notify_if_voice_client_is_missing(message):
             return
 
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             self._stop()
         else:
@@ -611,8 +610,8 @@ class MusicBot:
         """
         Stop current song and remove everything from queue
         """
-        while not self.media_queue.empty():
-            self.media_queue.get()
+        while not len(self.media_deque) == 0:
+            self.media_deque.popleft()
 
         self._stop()
         await message.add_reaction(MusicBot.REACTION_EMOJI)
@@ -621,7 +620,7 @@ class MusicBot:
         """
         Displays the currently playing song
         """
-        if self.current_media is None and self.media_queue.empty():
+        if self.current_media is None and len(self.media_deque) == 0:
             await message.channel.send(":sparkles: Nothing in queue")
             return
 
@@ -639,12 +638,12 @@ class MusicBot:
         await self.show_current(message, _command_content)
 
         reply = "```\n"
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             reply += " -- No audio in queue --\n"
         else:
             reply += " -- Queue --\n"
 
-        for index, item in enumerate(self.media_queue.queue):  # Internals usage :(
+        for index, item in enumerate(self.media_deque):
             media, _ = item  # we only care about the media metadata
             reply += str(index + 1) + ": " + media.title
             reply += "\n"

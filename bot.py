@@ -336,9 +336,16 @@ class MusicBot:
         """Play a playlist"""
         logging.info("Fetching playlist for user %s", message.author)
         playlist = pytube.Playlist(command_content)
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
         added_videos = 0
         failed_videos = 0
+        progress = 0
+        total = len(playlist)
+        status_fmt = "Fetching playlist... {}"
+        msg = await message.channel.send(status_fmt.format(""))
         for video in playlist:
+            await msg.edit(content=status_fmt.format(f"{progress/total:.0%}"))
+            progress += 1
             try:
                 media = pafy.new(video)
             except KeyError as err:
@@ -350,9 +357,9 @@ class MusicBot:
             if added_videos == 1 and not self.voice_client.is_playing():
                 await self.next_in_queue()
         logging.info("%d items added to queue, %d failed", added_videos, failed_videos)
-        await message.channel.send(
-            f":clipboard: Added {added_videos} of "
-            f"{added_videos+failed_videos} songs to queue :notes:"
+        await msg.edit(
+            content=f":clipboard: Added {added_videos} of {added_videos+failed_videos} "
+            "songs to queue :notes:"
         )
 
     async def play(self, message, command_content):

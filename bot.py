@@ -344,7 +344,7 @@ class MusicBot:
         """
         if not self.after_callback_blocked:
             self.loop.create_task(self.attempt_disconnect())
-            self.next_in_queue()
+            self.loop.create_task(self.next_in_queue())
         else:
             self.after_callback_blocked = False
 
@@ -454,6 +454,7 @@ class MusicBot:
 
         if time.time() - self.last_played_time < self.DISCONNECT_TIMER_SECONDS:
             return
+        logging.info("Disconnecting from voice chat due to inactivity")
 
         self._stop()
         await self.voice_client.disconnect()
@@ -518,7 +519,7 @@ class MusicBot:
             final_status += "...\n"
         final_status += "```"
 
-        logging.info("final status message: \n%s", final_status)
+        logging.debug("final status message: \n%s", final_status)
 
         await reply.edit(content=final_status)
 

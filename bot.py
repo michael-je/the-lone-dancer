@@ -253,7 +253,7 @@ class MusicBot:
         if self.media_queue.empty():
             self.current_media = None
 
-    async def next_in_queue(self, notify=True):
+    async def next_in_queue(self):
         """
         Switch to next song in queue
         """
@@ -281,12 +281,9 @@ class MusicBot:
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
 
-        if notify:
-            self.loop.create_task(
-                message.channel.send(
-                    f":notes: Now Playing :notes:\n```\n{media.title}\n```"
-                )
-            )
+        await message.channel.send(
+            f":notes: Now Playing :notes:\n```\n{media.title}\n```"
+        )
 
     async def create_or_get_voice_client(self, message):
         """Get a voice client to play audio.
@@ -351,10 +348,7 @@ class MusicBot:
             self.media_queue.put((media, message))
             added_videos += 1
             if added_videos == 1 and not self.voice_client.is_playing():
-                await self.next_in_queue(notify=False)
-                await message.channel.send(
-                    f":notes: Now Playing :notes:\n```\n{media.title}\n```"
-                )
+                await self.next_in_queue()
         logging.info("%d items added to queue, %d failed", added_videos, failed_videos)
         await message.channel.send(
             f":clipboard: Added {added_videos} of "

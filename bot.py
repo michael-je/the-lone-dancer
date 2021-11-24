@@ -239,7 +239,7 @@ class MusicBot:
         """
         if not self.after_callback_blocked:
             # we could self.loop.create_task here if next_in_queue needs to be async
-            self.next_in_queue()
+            self.loop.create_task(self.next_in_queue())
         else:
             self.after_callback_blocked = False
 
@@ -253,7 +253,7 @@ class MusicBot:
         if self.media_queue.empty():
             self.current_media = None
 
-    def next_in_queue(self, notify=True):
+    async def next_in_queue(self, notify=True):
         """
         Switch to next song in queue
         """
@@ -351,7 +351,7 @@ class MusicBot:
             self.media_queue.put((media, message))
             added_videos += 1
             if added_videos == 1 and not self.voice_client.is_playing():
-                self.next_in_queue(notify=False)
+                await self.next_in_queue(notify=False)
                 await message.channel.send(
                     f":notes: Now Playing :notes:\n```\n{media.title}\n```"
                 )
@@ -422,7 +422,7 @@ class MusicBot:
             )
         else:
             logging.info("Playing media")
-            self.next_in_queue()
+            await self.next_in_queue()
 
     async def stop(self, message, _command_content):
         """
@@ -485,7 +485,7 @@ class MusicBot:
             self.voice_client.resume()
         elif not self.voice_client.is_playing():
             logging.info("Resuming for user %s (next_in_queue)", message.author)
-            self.next_in_queue()
+            await self.next_in_queue()
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def skip(self, message, _command_content):
@@ -499,7 +499,7 @@ class MusicBot:
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             self._stop()
         else:
-            self.next_in_queue()
+            await self.next_in_queue()
             await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def show_queue(self, message, _command_content):

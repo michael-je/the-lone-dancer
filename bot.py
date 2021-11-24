@@ -127,6 +127,13 @@ class MusicBot:
             argument_name="term/url",
         )
         self.register_command(
+            "playnext",
+            help_message="Put a song at the front of the queue",
+            handler=self.play_next,
+            guarded_by=self.command_lock,
+            argument_name="term/url",
+        )
+        self.register_command(
             "stop",
             help_message="Stop and remove current song from queue",
             handler=self.stop,
@@ -473,6 +480,8 @@ class MusicBot:
         """
         Play URL or first search term from command_content in the author's voice channel
         """
+        # pylint: disable=too-many-branches
+
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
             return
@@ -480,7 +489,7 @@ class MusicBot:
         if not command_content:
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
-            elif not self.voice_client.is_playing() and not len(self.media_deque) == 0:
+            elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
                 await self.resume(message, command_content)
             elif self.voice_client.is_playing():
                 logging.info("User %s tried 'play' with no search term", message.author)
@@ -525,6 +534,12 @@ class MusicBot:
         else:
             logging.info("Playing media")
             self.next_in_queue()
+
+    async def play_next(self, message, command_content):
+        """
+        Like play, but puts the song at the front of the queue.
+        """
+        await self.play(message, command_content, deque_append_left=True)
 
     async def stop(self, message, _command_content):
         """
@@ -610,7 +625,7 @@ class MusicBot:
         """
         Stop current song and remove everything from queue
         """
-        while not len(self.media_deque) == 0:
+        while len(self.media_deque) != 0:
             self.media_deque.popleft()
 
         self._stop()

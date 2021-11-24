@@ -90,6 +90,7 @@ class MusicBot:
     REACTION_EMOJI = "👍"
     TEXTWIDTH = 60
     SYNTAX_LANGUAGE = "arm"
+    N_PLAYLIST_SHOW = 10
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -365,7 +366,7 @@ class MusicBot:
         final_status += f"{len(added)+n_failed} songs to queue :notes:\n"
         final_status += f"```{self.SYNTAX_LANGUAGE}"
         final_status += "\n"
-        for media in added[:10]:
+        for media in added[: self.N_PLAYLIST_SHOW]:
             title = media.title
             titlewidth = self.TEXTWIDTH - 10
             if len(title) > titlewidth:
@@ -377,7 +378,7 @@ class MusicBot:
             # Time: 5-6 char + () + buffer = 10
             final_status += f"{title:<{titlewidth}}{duration:>10}"
             final_status += "\n"
-        if len(added) >= 10:
+        if len(added) >= self.N_PLAYLIST_SHOW:
             final_status += "...\n"
         final_status += "```"
 

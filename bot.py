@@ -88,6 +88,8 @@ class MusicBot:
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
+    TEXTWIDTH = 60
+    SYNTAX_LANGUAGE = "arm"
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -337,30 +339,51 @@ class MusicBot:
         logging.info("Fetching playlist for user %s", message.author)
         playlist = pytube.Playlist(command_content)
         await message.add_reaction(MusicBot.REACTION_EMOJI)
-        added_videos = 0
-        failed_videos = 0
+        added = []
+        n_failed = 0
         progress = 0
         total = len(playlist)
         status_fmt = "Fetching playlist... {}"
-        msg = await message.channel.send(status_fmt.format(""))
+        reply = await message.channel.send(status_fmt.format(""))
         for video in playlist:
-            await msg.edit(content=status_fmt.format(f"{progress/total:.0%}"))
+            await reply.edit(content=status_fmt.format(f"{progress/total:.0%}"))
             progress += 1
             try:
                 media = pafy.new(video)
             except KeyError as err:
                 logging.error(err)
-                failed_videos += 1
+                n_failed += 1
                 continue
             self.media_queue.put((media, message))
-            added_videos += 1
-            if added_videos == 1 and not self.voice_client.is_playing():
+            added.append(media)
+            if len(added) == 1 and not self.voice_client.is_playing():
                 await self.next_in_queue()
-        logging.info("%d items added to queue, %d failed", added_videos, failed_videos)
-        await msg.edit(
-            content=f":clipboard: Added {added_videos} of {added_videos+failed_videos} "
-            "songs to queue :notes:"
-        )
+        logging.info("%d items added to queue, %d failed", len(added), n_failed)
+
+        final_status = ""
+        final_status += f":clipboard: Added {len(added)} of "
+        final_status += f"{len(added)+n_failed} songs to queue :notes:\n"
+        final_status += f"```{self.SYNTAX_LANGUAGE}"
+        final_status += "\n"
+        for media in added[:10]:
+            title = media.title
+            titlewidth = self.TEXTWIDTH - 10
+            if len(title) > titlewidth:
+                title = title[: titlewidth - 3] + "..."
+
+            duration_m = int(media.duration[:2]) * 60 + int(media.duration[3:5])
+            duration_s = int(media.duration[6:])
+            duration = f"({duration_m}:{duration_s:0>2})"
+            # Time: 5-6 char + () + buffer = 10
+            final_status += f"{title:<{titlewidth}}{duration:>10}"
+            final_status += "\n"
+        if len(added) >= 10:
+            final_status += "...\n"
+        final_status += "```"
+
+        logging.info("final status message: \n%s", final_status)
+
+        await reply.edit(content=final_status)
 
     async def play(self, message, command_content):
         """

@@ -16,6 +16,7 @@ import discord
 import jokeapi
 import pafy
 import youtubesearchpython
+import pytube
 
 
 class BotDispatcher(discord.Client):
@@ -91,6 +92,9 @@ class MusicBot:
     REACTION_EMOJI = "👍"
     DOCS_URL = "github.com/michael-je/the-lone-dancer"
     DISCONNECT_TIMER_SECONDS = 600
+    TEXTWIDTH = 60
+    SYNTAX_LANGUAGE = "arm"
+    N_PLAYLIST_SHOW = 10
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
 
@@ -111,6 +115,7 @@ class MusicBot:
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
+        self.playlist_regex = re.compile(r"\b(?:play)?list\b\=(\w+)")
 
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
@@ -260,10 +265,8 @@ class MusicBot:
         if guarded_by:
 
             async def guarded_handler(*args):
-                logging.info("Aquiring lock")
                 async with guarded_by:
                     return await handler(*args)
-                logging.info("Releasing lock")
 
             self.handlers[command_name] = guarded_handler
         else:
@@ -358,7 +361,7 @@ class MusicBot:
         """Creates an audio sorce from an audio url"""
         return discord.FFmpegPCMAudio(audio_url)
 
-    def next_in_queue(self):
+    async def next_in_queue(self):
         """
         Switch to next song in queue
         """
@@ -386,10 +389,8 @@ class MusicBot:
         self.voice_client.play(audio_source, after=self.after_callback)
         logging.info("Audio source started")
 
-        self.loop.create_task(
-            message.channel.send(
-                f":notes: Now Playing :notes:\n```\n{media.title}\n```"
-            )
+        await message.channel.send(
+            f":notes: Now Playing :notes:\n```\n{media.title}\n```"
         )
 
     async def create_or_get_voice_client(self, message):
@@ -470,6 +471,57 @@ class MusicBot:
             return True
         return False
 
+    async def playlist(self, message, command_content):
+        """Play a playlist"""
+        logging.info("Fetching playlist for user %s", message.author)
+        playlist = pytube.Playlist(command_content)
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        added = []
+        n_failed = 0
+        progress = 0
+        total = len(playlist)
+        status_fmt = "Fetching playlist... {}"
+        reply = await message.channel.send(status_fmt.format(""))
+        for video in playlist:
+            await reply.edit(content=status_fmt.format(f"{progress/total:.0%}"))
+            progress += 1
+            try:
+                media = pafy.new(video)
+            except KeyError as err:
+                logging.error(err)
+                n_failed += 1
+                continue
+            self.media_queue.put((media, message))
+            added.append(media)
+            if len(added) == 1 and not self.voice_client.is_playing():
+                await self.next_in_queue()
+        logging.info("%d items added to queue, %d failed", len(added), n_failed)
+
+        final_status = ""
+        final_status += f":clipboard: Added {len(added)} of "
+        final_status += f"{len(added)+n_failed} songs to queue :notes:\n"
+        final_status += f"```{self.SYNTAX_LANGUAGE}"
+        final_status += "\n"
+        for media in added[: self.N_PLAYLIST_SHOW]:
+            title = media.title
+            titlewidth = self.TEXTWIDTH - 10
+            if len(title) > titlewidth:
+                title = title[: titlewidth - 3] + "..."
+
+            duration_m = int(media.duration[:2]) * 60 + int(media.duration[3:5])
+            duration_s = int(media.duration[6:])
+            duration = f"({duration_m}:{duration_s:0>2})"
+            # Time: 5-6 char + () + buffer = 10
+            final_status += f"{title:<{titlewidth}}{duration:>10}"
+            final_status += "\n"
+        if len(added) >= self.N_PLAYLIST_SHOW:
+            final_status += "...\n"
+        final_status += "```"
+
+        logging.info("final status message: \n%s", final_status)
+
+        await reply.edit(content=final_status)
+
     async def play(self, message, command_content):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -479,6 +531,7 @@ class MusicBot:
             return
 
         if not command_content:
+            # No search term/url
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
             elif not self.voice_client.is_playing() and not self.media_queue.empty():
@@ -495,12 +548,18 @@ class MusicBot:
                 )
             return
 
+        if re.findall(self.playlist_regex, command_content):
+            await self.playlist(message, command_content)
+            return
+
         media = None
         try:
             if self.url_regex.match(command_content):
+                # url to video
                 logging.info("Fetching video metadata with pafy")
                 media = self.pafy_search(command_content)
             else:
+                # search term
                 logging.info("Fetching search results with pafy")
                 search_result = self.youtube_search(command_content)
                 media = self.pafy_search(search_result["result"][0]["id"])
@@ -525,7 +584,7 @@ class MusicBot:
             )
         else:
             logging.info("Playing media")
-            self.next_in_queue()
+            await self.next_in_queue()
 
     async def stop(self, message, _command_content):
         """
@@ -590,7 +649,7 @@ class MusicBot:
             self.voice_client.resume()
         elif not self.voice_client.is_playing():
             logging.info("Resuming for user %s (next_in_queue)", message.author)
-            self.next_in_queue()
+            await self.next_in_queue()
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def skip(self, message, _command_content):
@@ -604,7 +663,7 @@ class MusicBot:
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             self._stop()
         else:
-            self.next_in_queue()
+            await self.next_in_queue()
             await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def clear_queue(self, message, _command_content):

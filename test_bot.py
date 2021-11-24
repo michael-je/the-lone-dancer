@@ -135,7 +135,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         await self.music_bot_.handle_message(play_message)
 
         play_message.channel.send.assert_awaited_with(
-            ":studio_microphone: default_author, please join a voice channel to start the :robot:"
+            ":studio_microphone: default_author, please join a voice channel to start "
+            "the :robot:"
         )
 
     async def test_play_connects_deafaned(self):
@@ -193,6 +194,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.music_bot_.voice_client.finish_audio_source()
+
+        await asyncio.sleep(0.1)
 
         play_message2.channel.send.assert_called_with(
             ":notes: Now Playing :notes:\n```\nsong2\n```"

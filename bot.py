@@ -1,6 +1,12 @@
+"""
+Serves a bot on Discord for playing music in voice chat, as well as some fun additions.
+"""
 # pylint: disable=import-error
-# pylint: disable=missing-module-docstring
+# pylint: disable=no-self-use
 # pylint: disable=too-many-public-methods
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-arguments
 
 
 import os
@@ -44,7 +50,7 @@ class BotDispatcher(discord.Client):
 
     async def on_error(
         self, event_name, *args, **kwargs
-    ):  # pylint: disable=arguments-differ,no-self-use
+    ):  # pylint: disable=arguments-differ
         """
         Notify user of error and log it
         """
@@ -83,10 +89,6 @@ class MusicBot:
     """
     The main bot functionality
     """
-
-    # pylint: disable=no-self-use
-    # pylint: disable=too-many-instance-attributes
-    # pylint: disable=too-many-public-methods
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
@@ -225,7 +227,7 @@ class MusicBot:
             handler=self.joke,
         )
 
-    def register_command(  # pylint: disable=too-many-arguments
+    def register_command(
         self,
         command_name,
         help_message: str,
@@ -882,7 +884,6 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # pylint: disable=invalid-name
     token = os.getenv("DISCORD_TOKEN")
     if token is None:
         with open(".env", "r", encoding="utf-8") as env_file:

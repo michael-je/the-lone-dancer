@@ -14,6 +14,7 @@ RUN source venv/bin/activate && python3.8 -m pip install -r requirements.txt
 
 # Copy necessary files
 COPY *.py .
+COPY *.ogg .
 
 # Command to run
 CMD source venv/bin/activate && python3.8 bot.py

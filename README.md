@@ -1,6 +1,6 @@
 # The Lone Dancer - Discord music bot
 
-This is a working discord bot centered around streaming music from **YouTube** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
+This is a Discord bot centered around streaming music from **YouTube** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
 
 ---
 ## Main features
@@ -54,21 +54,20 @@ Simply build and run the container:
 4. Install required python libraries:
 
 		pip3 install -r requirements.txt
-5. Follow the beginning of [this guide](https://www.freecodecamp.org/news/create-a-discord-bot-with-python#how-to-create-a-discord-bot-account) to create a discord bot and generate an API token for it. 
+5. Follow [this guide](https://discordpy.readthedocs.io/en/stable/discord.html) to create a bot and connect it to a Discord server.
 6. Create a config file using the example:
 		
 		cp .env.example .env
 	Then replace the empty `DISCORD_TOKEN` field with your generated token from the previous step.
-7. [Connect the bot to a discord server](https://www.freecodecamp.org/news/create-a-discord-bot-with-python/#how-to-invite-your-bot-to-join-a-server) for testing; make sure to give it relevant permissions.
-8. Run the bot:
+7. Run the bot:
 
 		python3 bot.py
-9. Verify the bot is running by typing `-hello` in the discord server with the bot.
+8. Verify the bot is running by typing `-hello` in the Discord server with the bot.
 
 ---
 ## Usage
 
-Once the bot is up and running you can control it by sending commands to any text channel in the discord server. Commands look like: `-command`
+Once the bot is up and running you can control it by sending commands to any text channel in the Discord server. Commands look like: `-command`
 
 You need to be connected to a voice channel to use any of the bot's voice streaming commands.
 

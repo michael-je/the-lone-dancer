@@ -482,9 +482,10 @@ class MusicBot:
         """
         media = None
         try:
-            if self.url_regex.match(command_content):
+            url = self.url_regex.search(command_content)
+            if url:
                 logging.info("Fetching video metadata with pafy")
-                media = self.pafy_search(command_content)
+                media = self.pafy_search(url.group())
             else:
                 logging.info("Fetching search results with pafy")
                 search_result = self.youtube_search(command_content)

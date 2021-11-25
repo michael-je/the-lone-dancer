@@ -476,12 +476,33 @@ class MusicBot:
             return True
         return False
 
+    def get_media(self, message, command_content):
+        """
+        Parses user message for a youtube search or video id and returns pafy media.
+        """
+        media = None
+        try:
+            if self.url_regex.match(command_content):
+                logging.info("Fetching video metadata with pafy")
+                media = self.pafy_search(command_content)
+            else:
+                logging.info("Fetching search results with pafy")
+                search_result = self.youtube_search(command_content)
+                media = self.pafy_search(search_result["result"][0]["id"])
+        except KeyError as err:
+            # In rare cases we get an error processing media, e.g. when vid has no likes
+            # KeyError: 'like_count'
+            logging.error(err)
+            self.loop.create_task(
+                message.channel.send(":robot: Error getting media data :robot:")
+            )
+
+        return media
+
     async def play(self, message, command_content, deque_append_left=False):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
-        # pylint: disable=too-many-branches
-
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
             return
@@ -503,20 +524,8 @@ class MusicBot:
                 )
             return
 
-        media = None
-        try:
-            if self.url_regex.match(command_content):
-                logging.info("Fetching video metadata with pafy")
-                media = self.pafy_search(command_content)
-            else:
-                logging.info("Fetching search results with pafy")
-                search_result = self.youtube_search(command_content)
-                media = self.pafy_search(search_result["result"][0]["id"])
-        except KeyError as err:
-            # In rare cases we get an error processing media, e.g. when vid has no likes
-            # KeyError: 'like_count'
-            logging.error(err)
-            await message.channel.send(":robot: Error getting media data :robot:")
+        media = self.get_media(message, command_content)
+        if media is None:
             return
 
         logging.info("Media found:\n%s", media)

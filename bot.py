@@ -500,7 +500,7 @@ class MusicBot:
 
         return media
 
-    async def play(self, message, command_content, deque_append_left=False):
+    async def play(self, message, command_content, playnext=False):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
@@ -531,7 +531,7 @@ class MusicBot:
 
         logging.info("Media found:\n%s", media)
 
-        if deque_append_left:
+        if playnext:
             self.media_deque.appendleft((media, message))
         else:
             self.media_deque.append((media, message))

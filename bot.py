@@ -551,7 +551,7 @@ class MusicBot:
                 )
             return
 
-        if re.findall(self.playlist_regex, command_content):
+        if re.search(self.playlist_regex, command_content):
             await self.playlist(message, command_content)
             return
 

@@ -1,0 +1,8 @@
+[Unit]
+Description=The Lone Dancer updater
+After=basic.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/the-lone-dancer-update.sh

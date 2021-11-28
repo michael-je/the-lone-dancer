@@ -1,0 +1,15 @@
+[Unit]
+Description=The Lone Dancer
+After=basic.target
+
+[Service]
+Type=simple
+#Restart=always
+#RemainAfterExit=yes
+User=the-lone-dancer
+ExecStart=/usr/bin/podman start --attach the-lone-dancer
+#ExecReload=/usr/bin/podman restart the-lone-dancer
+ExecStop=/usr/bin/podman stop the-lone-dancer
+
+[Install]
+WantedBy=multi-user.target

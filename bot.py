@@ -20,9 +20,9 @@ import time
 
 import discord
 import jokeapi
-import pafy
 import youtubesearchpython
 import pytube
+import pafy_fixed.pafy_fixed as pafy
 
 
 class BotDispatcher(discord.Client):
@@ -432,7 +432,11 @@ class MusicBot:
 
     def pafy_search(self, youtube_link_or_id):
         """Search for youtube link with pafy"""
-        return pafy.new(youtube_link_or_id)
+        media = pafy.new(youtube_link_or_id)
+        if media.dislikes == 0:
+            logging.info("Ignoring dislike count in new media")
+
+        return media
 
     def youtube_search(self, search_str):
         """Search for search_str on youtube"""

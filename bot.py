@@ -234,6 +234,7 @@ class MusicBot:
         handler=None,
         guarded_by: asyncio.Lock = None,
         argument_name: str = "",
+        manual_lock=False,
     ):
         """
         Register a command with the name 'command_name'.
@@ -251,6 +252,8 @@ class MusicBot:
             Maximum 100 characters.
           argument_name: Name of argument used in help message.
              Requires length command_name+argument_name+3 < 20
+          manual_lock: Whether the registered handler needs manual locking.
+             If not the handlered is protected by the lock automatically if set.
         """
         assert handler
         assert command_name not in self.handlers
@@ -264,7 +267,7 @@ class MusicBot:
 
         self.help_messages[command_name] = f"{help_prefix}{help_message}"
 
-        if guarded_by:
+        if guarded_by and not manual_lock:
 
             async def guarded_handler(*args):
                 async with guarded_by:

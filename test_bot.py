@@ -196,6 +196,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         self.music_bot_.voice_client.finish_audio_source()
 
+        await asyncio.sleep(0.1)
+
         play_message2.channel.send.assert_called_with(
             ":notes: Now Playing :notes:\n```\nsong2\n```"
         )

@@ -14,7 +14,6 @@ import re
 import logging
 import asyncio
 import collections
-import queue
 import traceback
 import time
 
@@ -107,7 +106,7 @@ class MusicBot:
 
         self.handlers = {}
         self.help_messages = {}
-        self.media_queue = queue.Queue()
+        self.media_deque = collections.deque()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
@@ -131,6 +130,13 @@ class MusicBot:
             "play",
             help_message="Play audio from URL",
             handler=self.play,
+            guarded_by=self.command_lock,
+            argument_name="term/url",
+        )
+        self.register_command(
+            "playnext",
+            help_message="Put a song at the front of the queue",
+            handler=self.play_next,
             guarded_by=self.command_lock,
             argument_name="term/url",
         )
@@ -356,7 +362,7 @@ class MusicBot:
         """
         self.after_callback_blocked = True
         self.voice_client.stop()
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             self.current_media = None
 
     def create_audio_source(self, audio_url):
@@ -372,12 +378,12 @@ class MusicBot:
                 "Should not be called when the bot is not connected to voice!"
             )
 
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             self.current_media = None
             self.voice_client.stop()
             return
 
-        media, message = self.media_queue.get()
+        media, message = self.media_deque.popleft()
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
@@ -485,6 +491,30 @@ class MusicBot:
             return True
         return False
 
+    def get_media(self, message, command_content):
+        """
+        Parses user message for a youtube search or video id and returns pafy media.
+        """
+        media = None
+        try:
+            url = self.url_regex.search(command_content)
+            if url:
+                logging.info("Fetching video metadata with pafy")
+                media = self.pafy_search(url.group())
+            else:
+                logging.info("Fetching search results with pafy")
+                search_result = self.youtube_search(command_content)
+                media = self.pafy_search(search_result["result"][0]["id"])
+        except KeyError as err:
+            # In rare cases we get an error processing media, e.g. when vid has no likes
+            # KeyError: 'like_count'
+            logging.error(err)
+            self.loop.create_task(
+                message.channel.send(":robot: Error getting media data :robot:")
+            )
+
+        return media
+
     async def playlist(self, message, command_content):
         """Play a playlist"""
         logging.info("Fetching playlist for user %s", message.author)
@@ -505,7 +535,7 @@ class MusicBot:
                 logging.error(err)
                 n_failed += 1
                 continue
-            self.media_queue.put((media, message))
+            self.media_deque.append((media, message))
             added.append(media)
             if len(added) == 1 and not self.voice_client.is_playing():
                 await self.next_in_queue()
@@ -536,7 +566,7 @@ class MusicBot:
 
         await reply.edit(content=final_status)
 
-    async def play(self, message, command_content):
+    async def play(self, message, command_content, playnext=False):
         """
         Play URL or first search term from command_content in the author's voice channel
         """
@@ -548,7 +578,7 @@ class MusicBot:
             # No search term/url
             if self.voice_client.is_paused():
                 await self.resume(message, command_content)
-            elif not self.voice_client.is_playing() and not self.media_queue.empty():
+            elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
                 await self.resume(message, command_content)
             elif self.voice_client.is_playing():
                 logging.info("User %s tried 'play' with no search term", message.author)
@@ -566,30 +596,16 @@ class MusicBot:
             await self.playlist(message, command_content)
             return
 
-        media = None
-        try:
-            if self.url_regex.match(command_content):
-                # url to video
-                logging.info("Fetching video metadata with pafy")
-                media = self.pafy_search(command_content)
-            else:
-                # search term
-                logging.info("Fetching search results with pafy")
-                search_result = self.youtube_search(command_content)
-                media = self.pafy_search(search_result["result"][0]["id"])
-        except KeyError as err:
-            # In rare cases we get an error processing media, e.g. when vid has no likes
-            # KeyError: 'like_count'
-            logging.error(err)
-            await message.channel.send(":robot: Error getting media data :robot:")
+        media = self.get_media(message, command_content)
+        if media is None:
             return
 
         logging.info("Media found:\n%s", media)
 
-        # We queue up a pair of the media metadata and the message context, so we can
-        # continue to message the channel that this command was instanciated from as the
-        # queue is unrolled.
-        self.media_queue.put((media, message))
+        if playnext:
+            self.media_deque.appendleft((media, message))
+        else:
+            self.media_deque.append((media, message))
 
         if voice_client.is_playing():
             logging.info("Added media to queue")
@@ -600,13 +616,19 @@ class MusicBot:
             logging.info("Playing media")
             await self.next_in_queue()
 
+    async def play_next(self, message, command_content):
+        """
+        Like play, but puts the song at the front of the queue.
+        """
+        await self.play(message, command_content, playnext=True)
+
     async def stop(self, message, _command_content):
         """
         Stop currently playing song
         """
         if await self.notify_if_voice_client_is_missing(message):
             return
-        if self.media_queue.empty() and not self.voice_client.is_playing():
+        if len(self.media_deque) == 0 and not self.voice_client.is_playing():
             logging.info("User %s stopped on empty non-playing queue", message.author)
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
@@ -642,7 +664,7 @@ class MusicBot:
         """
         if await self.notify_if_voice_client_is_missing(message):
             return
-        if self.media_queue.empty() and not self.voice_client.is_paused():
+        if len(self.media_deque) == 0 and not self.voice_client.is_paused():
             logging.info(
                 "User %s requested 'resume' but queue is empty", message.author
             )
@@ -673,7 +695,7 @@ class MusicBot:
         if await self.notify_if_voice_client_is_missing(message):
             return
 
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             await message.channel.send(MusicBot.END_OF_QUEUE_MSG)
             self._stop()
         else:
@@ -684,8 +706,8 @@ class MusicBot:
         """
         Stop current song and remove everything from queue
         """
-        while not self.media_queue.empty():
-            self.media_queue.get()
+        while len(self.media_deque) != 0:
+            self.media_deque.popleft()
 
         self._stop()
         await message.add_reaction(MusicBot.REACTION_EMOJI)
@@ -694,7 +716,7 @@ class MusicBot:
         """
         Displays the currently playing song
         """
-        if self.current_media is None and self.media_queue.empty():
+        if self.current_media is None and len(self.media_deque) == 0:
             await message.channel.send(":sparkles: Nothing in queue")
             return
 
@@ -712,12 +734,12 @@ class MusicBot:
         await self.show_current(message, _command_content)
 
         reply = "```\n"
-        if self.media_queue.empty():
+        if len(self.media_deque) == 0:
             reply += " -- No audio in queue --\n"
         else:
             reply += " -- Queue --\n"
 
-        for index, item in enumerate(self.media_queue.queue):  # Internals usage :(
+        for index, item in enumerate(self.media_deque):
             media, _ = item  # we only care about the media metadata
             reply += str(index + 1) + ": " + media.title
             reply += "\n"

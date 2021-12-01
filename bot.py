@@ -107,10 +107,12 @@ class MusicBot:
         self.handlers = {}
         self.help_messages = {}
         self.media_deque = collections.deque()
+        self.media_queue_done = collections.deque()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
         self.last_played_time = None
+        self.last_audio_message_channel = None
 
         self.url_regex = re.compile(
             r"http[s]?://"
@@ -381,9 +383,13 @@ class MusicBot:
         if len(self.media_deque) == 0:
             self.current_media = None
             self.voice_client.stop()
+            self.loop.create_task(
+                self.last_audio_message_channel.send(MusicBot.END_OF_QUEUE_MSG)
+            )
             return
 
-        media, message = self.media_deque.popleft()
+        self.media_queue_done.append(self.media_queue.popleft())
+        media, message = self.media_queue_done[-1]
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
@@ -515,6 +521,69 @@ class MusicBot:
 
         return media
 
+    def show_list(
+        self,
+        media_list,
+        n_items=N_PLAYLIST_SHOW,
+        enumerate_list=False,
+        prefix="",
+    ):
+        """
+        Show user the given list of media
+
+        media_list : list,collections.deque
+            Media items to show
+        n_items : int, optional
+            How many items to show in the list
+        enumerate_list : bool, optional
+            Whether to show queue position in list
+        prefix : str, optional
+            Prefix to put inside the list, before the media items; remember a newline
+        """
+        logging.debug("Got media list\n%s", media_list)
+        if isinstance(media_list, collections.deque):
+            # Extract media form deque
+            media_list = [x for x, y in list(media_list)]
+
+        # Start of message
+        list_message = ""
+        list_message += f"```{self.SYNTAX_LANGUAGE}\n"
+        list_message += prefix
+
+        # Loop setup
+        media_sublist = media_list[:n_items]
+        titlewidth = self.TEXTWIDTH - 10
+        enumerate_width = 0
+        if enumerate_list:
+            enumerate_width = len(str(len(media_sublist) - 1)) + 2
+            titlewidth -= enumerate_width
+
+        for position, media in enumerate(media_sublist):
+            logging.debug("Looking at media %s", media)
+            title = media.title
+            if enumerate_list:
+                # Add position in queue
+                if position == 0:
+                    title = f"{'>':>{enumerate_width-1}} {title}"
+                else:
+                    title = f"{position:>{enumerate_width-2}}: {title}"
+            if len(title) > titlewidth:
+                # Truncate long titles
+                title = title[: titlewidth - 3] + "..."
+
+            # Compute duration string mm:ss
+            duration_m = int(media.duration[:2]) * 60 + int(media.duration[3:5])
+            duration_s = int(media.duration[6:])
+            duration = f"({duration_m}:{duration_s:0>2})"
+            # Time: 5-6 char + () + buffer = 10
+            list_message += f"{title:<{titlewidth}}{duration:>10}"
+            list_message += "\n"
+        if len(media_list) >= n_items > 0:
+            # Truncate list
+            list_message += " " * enumerate_width + "...\n"
+        list_message += "```"
+        return list_message
+
     async def playlist(self, message, command_content):
         """Play a playlist"""
         logging.info("Fetching playlist for user %s", message.author)
@@ -544,23 +613,7 @@ class MusicBot:
         final_status = ""
         final_status += f":clipboard: Added {len(added)} of "
         final_status += f"{len(added)+n_failed} songs to queue :notes:\n"
-        final_status += f"```{self.SYNTAX_LANGUAGE}"
-        final_status += "\n"
-        for media in added[: self.N_PLAYLIST_SHOW]:
-            title = media.title
-            titlewidth = self.TEXTWIDTH - 10
-            if len(title) > titlewidth:
-                title = title[: titlewidth - 3] + "..."
-
-            duration_m = int(media.duration[:2]) * 60 + int(media.duration[3:5])
-            duration_s = int(media.duration[6:])
-            duration = f"({duration_m}:{duration_s:0>2})"
-            # Time: 5-6 char + () + buffer = 10
-            final_status += f"{title:<{titlewidth}}{duration:>10}"
-            final_status += "\n"
-        if len(added) >= self.N_PLAYLIST_SHOW:
-            final_status += "...\n"
-        final_status += "```"
+        final_status += self.show_list(added)
 
         logging.debug("final status message: \n%s", final_status)
 
@@ -591,6 +644,8 @@ class MusicBot:
                     ":unamused: Queue is empty - please enter something to search!"
                 )
             return
+
+        self.last_audio_message_channel = message.channel
 
         if re.search(self.playlist_regex, command_content):
             await self.playlist(message, command_content)
@@ -733,19 +788,20 @@ class MusicBot:
         """
         await self.show_current(message, _command_content)
 
-        reply = "```\n"
+        reply = ""
         if len(self.media_deque) == 0:
+            reply += "```\n"
             reply += " -- No audio in queue --\n"
-        else:
-            reply += " -- Queue --\n"
+            reply += "```"
+            return
 
-        for index, item in enumerate(self.media_deque):
-            media, _ = item  # we only care about the media metadata
-            reply += str(index + 1) + ": " + media.title
-            reply += "\n"
-        reply += "```"
-
-        await message.channel.send(reply)
+        await message.channel.send(
+            self.show_list(
+                self.media_deque,
+                enumerate_list=True,
+                prefix="-- Queue --\n",
+            ),
+        )
 
     async def move(self, message, _command_content):
         """

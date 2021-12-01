@@ -26,7 +26,8 @@ class MockVoiceClient:
 
     def stop(self):
         self.current_audio_source = None
-        self.after_callback(None)
+        if self.after_callback is not None:
+            self.after_callback(None)
         self.after_callback = None
 
     def finish_audio_source(self, exception=None):
@@ -135,7 +136,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         await self.music_bot_.handle_message(play_message)
 
         play_message.channel.send.assert_awaited_with(
-            ":studio_microphone: default_author, please join a voice channel to start the :robot:"
+            ":studio_microphone: default_author, please join a voice channel to start "
+            "the :robot:"
         )
 
     async def test_play_connects_deafaned(self):
@@ -194,8 +196,30 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         self.music_bot_.voice_client.finish_audio_source()
 
+        await asyncio.sleep(0.1)
+
         play_message2.channel.send.assert_called_with(
             ":notes: Now Playing :notes:\n```\nsong2\n```"
+        )
+
+    async def test_play_livestream_informs_user_unable_to_play(self):
+        mock_author = create_mock_author(
+            voice_state=create_mock_voice_state(channel=create_mock_voice_channel())
+        )
+        play_message = create_mock_message(
+            contents="-play livestream", author=mock_author
+        )
+        mock_media = mock.Mock()
+        mock_media.title.__repr__ = lambda self: "livestream"
+        mock_media.duration = "00:00:00"
+        self.music_bot_.pafy_search = mock.Mock(return_value=mock_media)
+
+        await self.music_bot_.handle_message(play_message)
+
+        await asyncio.sleep(0.1)
+
+        play_message.channel.send.assert_awaited_with(
+            "Sorry, I can't play livestreams :sob:"
         )
 
 

@@ -624,6 +624,22 @@ class MusicBot:
 
         await reply.edit(content=final_status)
 
+    async def play_nocontent(self, message, command_content):
+        """Handle play command with no content"""
+        # No search term/url
+        if self.voice_client.is_paused():
+            await self.resume(message, command_content)
+        elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
+            await self.resume(message, command_content)
+        elif self.voice_client.is_playing():
+            logging.info("User %s tried 'play' with no search term", message.author)
+            await message.channel.send(":unamused: Please enter something to search!")
+        else:
+            logging.info("User %s tried 'play' on empty queue", message.author)
+            await message.channel.send(
+                ":unamused: Queue is empty - please enter something to search!"
+            )
+
     async def play(self, message, command_content, playnext=False):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -632,29 +648,12 @@ class MusicBot:
         if not voice_client:
             return
 
-        if not command_content:
-            # No search term/url
-            if self.voice_client.is_paused():
-                await self.resume(message, command_content)
-            elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
-                await self.resume(message, command_content)
-            elif self.voice_client.is_playing():
-                logging.info("User %s tried 'play' with no search term", message.author)
-                await message.channel.send(
-                    ":unamused: Please enter something to search!"
-                )
-            else:
-                logging.info("User %s tried 'play' on empty queue", message.author)
-                await message.channel.send(
-                    ":unamused: Queue is empty - please enter something to search!"
-                )
-            return
-
         self.last_audio_message_channel = message.channel
 
+        if not command_content:
+            return await self.play_nocontent(message, command_content)
         if re.search(self.playlist_regex, command_content):
-            await self.playlist(message, command_content)
-            return
+            return await self.playlist(message, command_content)
 
         media = self.get_media(message, command_content)
         logging.info("Media found:\n%s", media)

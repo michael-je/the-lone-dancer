@@ -107,7 +107,7 @@ class MusicBot:
         self.handlers = {}
         self.help_messages = {}
         self.media_deque = collections.deque()
-        self.media_queue_done = collections.deque()
+        self.media_deque_done = collections.deque()
         self.voice_client = None
         self.current_media = None
         self.last_text_channel = None
@@ -388,8 +388,8 @@ class MusicBot:
             )
             return
 
-        self.media_queue_done.append(self.media_queue.popleft())
-        media, message = self.media_queue_done[-1]
+        self.media_deque_done.append(self.media_deque.popleft())
+        media, message = self.media_deque_done[-1]
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media

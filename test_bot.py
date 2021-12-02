@@ -4,6 +4,9 @@
 from unittest import mock
 import asyncio
 import unittest
+import logging
+import sys
+
 import bot
 
 
@@ -86,6 +89,12 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         # pylint: disable=attribute-defined-outside-init
+
+        logging.basicConfig(
+            format="%(asctime)s - %(funcName)s() - %(levelname)s - %(message)s",
+            stream=sys.stderr,
+            level=logging.INFO,
+        )
 
         self.dispatcher_ = mock.Mock()
         self.dispatcher_.user = create_mock_author(name="test_bot")

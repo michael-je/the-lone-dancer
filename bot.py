@@ -98,6 +98,7 @@ class MusicBot:
     N_PLAYLIST_SHOW = 10
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
+    NO_LIVESTREAM_MSG = "Sorry, I can't play livestreams :sob:"
 
     def __init__(self, guild, loop, dispatcher_user):
         self.guild = guild
@@ -371,6 +372,13 @@ class MusicBot:
         """Creates an audio sorce from an audio url"""
         return discord.FFmpegPCMAudio(audio_url)
 
+    def is_livestream(self, media):
+        """Return true iff media is a livestream"""
+        if media.duration == "00:00:00":
+            logging.info("Media length is 0")
+            return True
+        return False
+
     async def next_in_queue(self):
         """
         Switch to next song in queue
@@ -381,11 +389,10 @@ class MusicBot:
             )
 
         if len(self.media_deque) == 0:
+            logging.info("End of queue")
             self.current_media = None
             self.voice_client.stop()
-            self.loop.create_task(
-                self.last_audio_message_channel.send(MusicBot.END_OF_QUEUE_MSG)
-            )
+            await self.last_audio_message_channel.send(MusicBot.END_OF_QUEUE_MSG)
             return
 
         self.media_deque_done.append(self.media_deque.popleft())
@@ -393,11 +400,9 @@ class MusicBot:
 
         logging.info("Fetching audio URL for '%s'", media.title)
         self.current_media = media
-        if media.duration == "00:00:00":
-            self.loop.create_task(
-                message.channel.send("Sorry, I can't play livestreams :sob:")
-            )
-            self.next_in_queue()
+        if self.is_livestream(media):
+            await message.channel.send(self.NO_LIVESTREAM_MSG)
+            await self.next_in_queue()
             return
 
         audio_url = media.getbestaudio().url
@@ -652,10 +657,14 @@ class MusicBot:
             return
 
         media = self.get_media(message, command_content)
+        logging.info("Media found:\n%s", media)
         if media is None:
+            logging.error("Found None-media for message '%s'", command_content)
             return
 
-        logging.info("Media found:\n%s", media)
+        if self.is_livestream(media):
+            await message.channel.send(self.NO_LIVESTREAM_MSG)
+            return
 
         if playnext:
             self.media_deque.appendleft((media, message))

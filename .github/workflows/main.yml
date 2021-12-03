@@ -64,6 +64,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Cache container build
+      uses: actions/cache@v2
+      with:
+        key: container-${{ hashFiles('Containerfile') }}
+        path: |
+          ~/.cache/containers
+          ~/.local/share/containers
     - name: Build container
       run: podman build . -t the-lone-dancer -f Containerfile
     - name: Test in container

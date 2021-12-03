@@ -7,6 +7,12 @@ on:
     branches: [ master ]
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Show local directory
+      run: ls -R
+
   pip:
     runs-on: ubuntu-latest
     steps:

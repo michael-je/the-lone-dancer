@@ -51,6 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Bulid container
-        run: podman build . -t the-lone-dancer
+        run: podman build . -t the-lone-dancer -f Containerfile
       - name: Test in container
         run: podman run the-lone-dancer python3.8 -m unittest tests/*.py

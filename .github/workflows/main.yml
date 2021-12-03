@@ -44,21 +44,54 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: find -name '*.py' -exec black --check {} +
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        key: pip-${{ hashFiles('requirements.txt') }}
+        path: |
+          ~/.cache/python
+          ~/.python
+          ~/.pip
+    - name: Install dependencies
+      run: pip install black
+    - name: Format with black
+      run: find -name '*.py' -exec black --check {} +
 
   lint:
     needs: pip
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: find -name '*.py' -exec pylint {} +
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        key: pip-${{ hashFiles('requirements.txt') }}
+        path: |
+          ~/.cache/python
+          ~/.python
+          ~/.pip
+    - name: Install dependencies
+      run: pip install pylint -r requirements.txt
+    - name: Lint with PyLint
+      run: find -name '*.py' -exec pylint {} +
 
   test:
     needs: pip
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: python -m unittest tests/*.py
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        key: pip-${{ hashFiles('requirements.txt') }}
+        path: |
+          ~/.cache/python
+          ~/.python
+          ~/.pip
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+    - name: Run unittests
+      run: python -m unittest tests/*.py
 
   podman:
     runs-on: ubuntu-latest

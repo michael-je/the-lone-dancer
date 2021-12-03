@@ -10,8 +10,10 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - name: Show local directory
       run: |
+        pwd
         ls -la .
         ls -R
 
@@ -41,24 +43,28 @@ jobs:
     needs: pip
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - run: find -name '*.py' -exec black --check {} +
 
   lint:
     needs: pip
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - run: find -name '*.py' -exec pylint {} +
 
   test:
     needs: pip
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - run: python -m unittest tests/*.py
 
   podman:
     runs-on: ubuntu-latest
     steps:
-      - name: Bulid container
-        run: podman build . -t the-lone-dancer -f Containerfile
-      - name: Test in container
-        run: podman run the-lone-dancer python3.8 -m unittest tests/*.py
+    - uses: actions/checkout@v2
+    - name: Bulid container
+      run: podman build . -t the-lone-dancer -f Containerfile
+    - name: Test in container
+      run: podman run the-lone-dancer python3.8 -m unittest tests/*.py

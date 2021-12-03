@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Show local directory
-      run: ls -R
+      run: |
+        ls -la .
+        ls -R
 
   pip:
     runs-on: ubuntu-latest

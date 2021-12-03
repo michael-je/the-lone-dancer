@@ -74,4 +74,4 @@ jobs:
     - name: Build container
       run: podman build . -t the-lone-dancer -f Containerfile
     - name: Test in container
-      run: podman run the-lone-dancer python3.8 -m unittest tests/*.py
+      run: podman run the-lone-dancer python3.9 -m unittest tests/*.py

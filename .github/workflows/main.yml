@@ -104,14 +104,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Create dnf cache dir
+      run: mkdir ~/.cache/dnf/var/cache
     - name: Cache container build
       uses: actions/cache@v2
       with:
         key: container-${{ hashFiles('Containerfile') }}
         path: |
           ~/.cache/containers
+          ~/.cache/dnf
           ~/.local/share/containers
     - name: Build container
-      run: podman build . -t the-lone-dancer -f Containerfile
+      run: podman build . -t the-lone-dancer -f Containerfile -v ~/.cache/dnf/var/cache:/var/cache
     - name: Test in container
       run: podman run the-lone-dancer python3.9 -m unittest tests/*.py

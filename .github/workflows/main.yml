@@ -105,7 +105,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Create dnf cache dir
-      run: mkdir ~/.cache/dnf/var/cache
+      run: mkdir -p ~/.cache/dnf/var/cache
     - name: Cache container build
       uses: actions/cache@v2
       with:

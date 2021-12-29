@@ -117,6 +117,7 @@ class MusicBot:
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
         self.playlist_regex = re.compile(r"\b(?:play)?list\b\=(\w+)")
+        self.spotify_regex = re.compile(r"^https?://(\w+\.)*spotify.com")
 
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
@@ -566,6 +567,29 @@ class MusicBot:
 
         await reply.edit(content=final_status)
 
+    async def play_spotify(self, message, command_content, playnext=False):
+        """
+        Play a spotify track or playlist
+        """
+        spot = self.spotify
+
+    async def play_empty(self, message, command_content):
+        """
+        Play/resume depending on queue status
+        """
+        if self.voice_client.is_paused():
+            await self.resume(message, command_content)
+        elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
+            await self.resume(message, command_content)
+        elif self.voice_client.is_playing():
+            logging.info("User %s tried 'play' with no search term", message.author)
+            await message.channel.send(":unamused: Please enter something to search!")
+        else:
+            logging.info("User %s tried 'play' on empty queue", message.author)
+            await message.channel.send(
+                ":unamused: Queue is empty - please enter something to search!"
+            )
+
     async def play(self, message, command_content, playnext=False):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -575,21 +599,11 @@ class MusicBot:
             return
 
         if not command_content:
-            # No search term/url
-            if self.voice_client.is_paused():
-                await self.resume(message, command_content)
-            elif not self.voice_client.is_playing() and len(self.media_deque) != 0:
-                await self.resume(message, command_content)
-            elif self.voice_client.is_playing():
-                logging.info("User %s tried 'play' with no search term", message.author)
-                await message.channel.send(
-                    ":unamused: Please enter something to search!"
-                )
-            else:
-                logging.info("User %s tried 'play' on empty queue", message.author)
-                await message.channel.send(
-                    ":unamused: Queue is empty - please enter something to search!"
-                )
+            self.play_empty(message, command_content)
+            return
+
+        if re.search(self.spotify_regex, command_content):
+            await self.play_spotify(message, command_content, playnext)
             return
 
         if re.search(self.playlist_regex, command_content):

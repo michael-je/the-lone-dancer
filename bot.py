@@ -22,6 +22,7 @@ import jokeapi
 import youtubesearchpython
 import pytube
 import pafy_fixed.pafy_fixed as pafy
+import spotipy
 
 
 class BotDispatcher(discord.Client):
@@ -116,8 +117,16 @@ class MusicBot:
             r"http[s]?://"
             r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
         )
-        self.playlist_regex = re.compile(r"\b(?:play)?list\b\=(\w+)")
+        self.playlist_regex = re.compile(r"\b(?:play)?list(/|\=(\w+))")
+        self.youtube_playlist_regex = re.compile(
+            r"^https://youtu(be\.com|.be)/playlist"
+        )
         self.spotify_regex = re.compile(r"^https?://(\w+\.)*spotify.com")
+        self.spotify_playlist_regex = re.compile(
+            r"^https?://(\w+\.)*spotify.com/playlist"
+        )
+        self.spotify_album_regex = re.compile(r"^https?://(\w+\.)*spotify.com/album")
+        self.spotify_track_regex = re.compile(r"^https?://(\w+\.)*spotify.com/track")
 
         # Boolean to control whether the after callback is called
         self.after_callback_blocked = False
@@ -126,6 +135,10 @@ class MusicBot:
         # bot
         self.command_lock = asyncio.Lock()
         self.interrupt_play_stack = collections.deque()
+
+        self.spotify = spotipy.Spotify(
+            auth_manager=spotipy.oauth2.SpotifyClientCredentials()
+        )
 
         self.register_command(
             "play",
@@ -492,34 +505,75 @@ class MusicBot:
             return True
         return False
 
-    def get_media(self, message, command_content):
+    def get_media(self, search_term):
         """
-        Parses user message for a youtube search or video id and returns pafy media.
+        Fetches youtube result for link or search term and returns the pafy media
+        instance.
         """
         media = None
         try:
-            url = self.url_regex.search(command_content)
+            url = self.url_regex.search(search_term)
             if url:
                 logging.info("Fetching video metadata with pafy")
                 media = self.pafy_search(url.group())
             else:
                 logging.info("Fetching search results with pafy")
-                search_result = self.youtube_search(command_content)
+                search_result = self.youtube_search(search_term)
                 media = self.pafy_search(search_result["result"][0]["id"])
         except KeyError as err:
             # In rare cases we get an error processing media, e.g. when vid has no likes
             # KeyError: 'like_count'
             logging.error(err)
-            self.loop.create_task(
-                message.channel.send(":robot: Error getting media data :robot:")
-            )
 
         return media
 
+    def _get_spotify_tracks(self, url):
+        """
+        Fetch list of spotify tracks in album/playlist or single track
+
+        Each returned track is a dictionary of title, artist, length
+        """
+        tracks = []
+        if re.search(self.spotify_track_regex, url):
+            tracks.append(self.spotify.track(url))
+
+        if re.search(self.spotify_album_regex, url):
+            tracks = self.spotify.album(url)["tracks"]["items"]
+
+        if re.search(self.spotify_playlist_regex, url):
+            tracks = [
+                item["track"] for item in self.spotify.playlist(url)["tracks"]["items"]
+            ]
+
+        youtube_tracks = []
+        for track in tracks:
+            title = track["name"]
+            artist = track["artists"][0]["name"]
+            assert isinstance(title, str)
+            assert isinstance(artist, str)
+            youtube_track = self.get_media(f"{title} - {artist}")
+            youtube_track = self.get_media(f"{title} - {artist}")
+            youtube_tracks.append(youtube_track)
+
+        return youtube_tracks
+
+    def _get_youtube_tracks(self, url):
+        """
+        Fetch list of youtube tracks in playlist
+        """
+        # Get list of URLs to individual videos in playlist
+        links = pytube.Playlist(url)
+        return [self.get_media(link) for link in links]
+
     async def playlist(self, message, command_content):
-        """Play a playlist"""
+        """Play a playlist, youtube, or spotify"""
         logging.info("Fetching playlist for user %s", message.author)
-        playlist = pytube.Playlist(command_content)
+        playlist = None
+        if re.search(self.spotify_regex, command_content):
+            playlist = self._get_spotify_tracks(command_content)
+        elif re.search(self.youtube_playlist_regex, command_content):
+            playlist = self._get_youtube_tracks(command_content)
+
         await message.add_reaction(MusicBot.REACTION_EMOJI)
         added = []
         n_failed = 0
@@ -567,12 +621,6 @@ class MusicBot:
 
         await reply.edit(content=final_status)
 
-    async def play_spotify(self, message, command_content, playnext=False):
-        """
-        Play a spotify track or playlist
-        """
-        spot = self.spotify
-
     async def play_empty(self, message, command_content):
         """
         Play/resume depending on queue status
@@ -598,20 +646,29 @@ class MusicBot:
         if not voice_client:
             return
 
+        # Empty play command
         if not command_content:
             self.play_empty(message, command_content)
             return
 
-        if re.search(self.spotify_regex, command_content):
-            await self.play_spotify(message, command_content, playnext)
-            return
-
-        if re.search(self.playlist_regex, command_content):
+        # Playlist/album
+        if (
+            re.search(self.playlist_regex, command_content)
+            or re.search(self.spotify_album_regex, command_content)
+            or re.search(self.spotify_playlist_regex, command_content)
+        ):
             await self.playlist(message, command_content)
             return
 
-        media = self.get_media(message, command_content)
+        # Single track/url/search term
+        media = None
+        if re.search(self.spotify_track_regex, command_content):
+            media = self._get_spotify_tracks(command_content)[0]
+        else:
+            media = self.get_media(command_content)
+
         if media is None:
+            await message.channel.send(":robot: Error getting media data :robot:")
             return
 
         logging.info("Media found:\n%s", media)

@@ -112,6 +112,7 @@ class MusicBot:
         self.current_media = None
         self.last_text_channel = None
         self.last_played_time = None
+        self.continue_adding_to_playlist = None
 
         self.url_regex = re.compile(
             r"http[s]?://"
@@ -144,14 +145,21 @@ class MusicBot:
             "play",
             help_message="Play audio from URL",
             handler=self.play,
-            guarded_by=self.command_lock,
+            # guarded_by=self.command_lock,
+            argument_name="term/url",
+        )
+        self.register_command(
+            "cancel",
+            help_message="Stop adding new songs to playlist",
+            handler=self.cancel,
+            # guarded_by=self.command_lock,
             argument_name="term/url",
         )
         self.register_command(
             "playnext",
             help_message="Put a song at the front of the queue",
             handler=self.play_next,
-            guarded_by=self.command_lock,
+            # guarded_by=self.command_lock,
             argument_name="term/url",
         )
         self.register_command(
@@ -622,10 +630,15 @@ class MusicBot:
 
         return YouTubeList(links, self.get_media)
 
+    async def cancel(self, _message, _command_content):
+        """Stop adding new songs to queue"""
+        self.continue_adding_to_playlist = False
+
     async def playlist(self, message, command_content):
         """Play a playlist, youtube, or spotify"""
         logging.info("Fetching playlist for user %s", message.author)
         playlist = None
+        self.continue_adding_to_playlist = True
         if re.search(self.spotify_regex, command_content):
             playlist = self._get_spotify_tracks(command_content)
         elif re.search(self.youtube_playlist_regex, command_content):
@@ -644,6 +657,8 @@ class MusicBot:
         status_fmt = "Fetching playlist... {}"
         reply = await message.channel.send(status_fmt.format(""))
         for media in playlist:
+            if not self.continue_adding_to_playlist:
+                break
             await reply.edit(content=status_fmt.format(f"{progress/total:.0%}"))
             progress += 1
             self.media_deque.append((media, message))

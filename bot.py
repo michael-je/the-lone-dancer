@@ -545,17 +545,43 @@ class MusicBot:
                 item["track"] for item in self.spotify.playlist(url)["tracks"]["items"]
             ]
 
-        youtube_tracks = []
-        for track in tracks:
-            title = track["name"]
-            artist = track["artists"][0]["name"]
-            assert isinstance(title, str)
-            assert isinstance(artist, str)
-            youtube_track = self.get_media(f"{title} - {artist}")
-            youtube_track = self.get_media(f"{title} - {artist}")
-            youtube_tracks.append(youtube_track)
+        class SpotifyList:
+            """
+            Class for lazily getting PaFy data from spotify title and artist, while
+            having length
+            """
 
-        return youtube_tracks
+            def __init__(self, tracks, get_media):
+                self.tracks = tracks
+                self.get_media = get_media
+                self.index = 0
+
+            def __len__(self):
+                return len(self.tracks)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self.index >= len(self.tracks):
+                    raise StopIteration
+                track = self.tracks[self.index]
+                self.index += 1
+                title = track["name"]
+                artist = track["artists"][0]["name"]
+                assert isinstance(title, str)
+                assert isinstance(artist, str)
+                youtube_track = self.get_media(f"{title} - {artist}")
+                logging.info(
+                    "Lazily fetched '%s - %s' %d/%d",
+                    title,
+                    artist,
+                    self.index,
+                    len(self.tracks),
+                )
+                return youtube_track
+
+        return SpotifyList(tracks, self.get_media)
 
     def _get_youtube_tracks(self, url):
         """
@@ -581,16 +607,11 @@ class MusicBot:
         total = len(playlist)
         status_fmt = "Fetching playlist... {}"
         reply = await message.channel.send(status_fmt.format(""))
-        for video in playlist:
+        for media in playlist:
             await reply.edit(content=status_fmt.format(f"{progress/total:.0%}"))
             progress += 1
-            try:
-                media = pafy.new(video)
-            except KeyError as err:
-                logging.error(err)
-                n_failed += 1
-                continue
             self.media_deque.append((media, message))
+            logging.info("Added song '%s' from playlist", media.title)
             added.append(media)
             if len(added) == 1 and not self.voice_client.is_playing():
                 await self.next_in_queue()

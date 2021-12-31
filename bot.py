@@ -119,7 +119,7 @@ class MusicBot:
         )
         self.playlist_regex = re.compile(r"\b(?:play)?list(/|\=(\w+))")
         self.youtube_playlist_regex = re.compile(
-            r"^https://youtu(be\.com|.be)/playlist"
+            r"^https://(www\.)?youtu(be\.com|.be)/playlist"
         )
         self.spotify_regex = re.compile(r"^https?://(\w+\.)*spotify.com")
         self.spotify_playlist_regex = re.compile(
@@ -589,7 +589,38 @@ class MusicBot:
         """
         # Get list of URLs to individual videos in playlist
         links = pytube.Playlist(url)
-        return [self.get_media(link) for link in links]
+
+        class YouTubeList:
+            """
+            Class for lazily getting PaFy data from YouTube title and artist, while
+            having length
+            """
+
+            def __init__(self, tracks, get_media):
+                self.tracks = tracks
+                self.get_media = get_media
+                self.index = 0
+
+            def __len__(self):
+                return len(self.tracks)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self.index >= len(self.tracks):
+                    raise StopIteration
+                youtube_track = self.get_media(self.tracks[self.index])
+                self.index += 1
+                logging.info(
+                    "Lazily fetched '%s' %d/%d",
+                    youtube_track.title,
+                    self.index,
+                    len(self.tracks),
+                )
+                return youtube_track
+
+        return YouTubeList(links, self.get_media)
 
     async def playlist(self, message, command_content):
         """Play a playlist, youtube, or spotify"""
@@ -599,6 +630,11 @@ class MusicBot:
             playlist = self._get_spotify_tracks(command_content)
         elif re.search(self.youtube_playlist_regex, command_content):
             playlist = self._get_youtube_tracks(command_content)
+
+        if playlist is None:
+            await message.add_reaction("👎")
+            await message.channel.send(":robot: Unable to fetch playlist :worried:")
+            return
 
         await message.add_reaction(MusicBot.REACTION_EMOJI)
         added = []

@@ -120,7 +120,7 @@ class MusicBot:
         )
         self.playlist_regex = re.compile(r"\b(?:play)?list(/|\=(\w+))")
         self.youtube_playlist_regex = re.compile(
-            r"^https://(www\.)?youtu(be\.com|.be)/playlist"
+            r"^https://(www\.)?youtu(be\.com|.be)/(playlist|watch\?v\=\w+&list\=)"
         )
         self.spotify_regex = re.compile(r"^https?://(\w+\.)*spotify.com")
         self.spotify_playlist_regex = re.compile(

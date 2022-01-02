@@ -641,9 +641,10 @@ class MusicBot:
 
         return YouTubeList(links, self.get_media)
 
-    async def cancel(self, _message, _command_content):
+    async def cancel(self, message, _command_content):
         """Stop adding new songs to queue"""
         self.continue_adding_to_playlist = False
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def playlist(self, message, command_content):
         """Play a playlist, youtube, or spotify"""

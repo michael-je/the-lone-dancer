@@ -4,7 +4,7 @@
 from unittest import mock
 import asyncio
 import unittest
-import bot
+import bot  # pylint: disable=import-error
 
 
 class MockVoiceClient:
@@ -32,7 +32,8 @@ class MockVoiceClient:
 
     def finish_audio_source(self, exception=None):
         """Call this to signal that the audio source has finished"""
-        self.after_callback(exception)
+        if self.after_callback is not None:
+            self.after_callback(exception)
         self.current_audio_source = None
 
 
@@ -77,8 +78,32 @@ def create_mock_message(
     message.content = contents
     message.author = author
     message.channel.send = mock.AsyncMock()
+    message.add_reaction = mock.AsyncMock()
+    message.edit = mock.AsyncMock()
 
     return message
+
+
+def create_mock_track():
+    return {
+        "name": "mock track",
+        "duration_ms": 1000,
+        "artists": [{"name": "mock artist"}],
+    }
+
+
+def create_mock_spotify(_self):
+    spotify = mock.Mock()
+    spotify.album = mock.Mock(return_value={"tracks": {"items": [create_mock_track()]}})
+    spotify.playlist = mock.Mock(
+        return_value={"tracks": {"items": [{"track": create_mock_track()}]}}
+    )
+    spotify.track = mock.Mock(return_value=create_mock_track())
+    return spotify
+
+
+def mock_pytube_playlist(_self, _url):
+    return ["https://www.youtube.com/watch?v=xxxxxxxxxxx"]
 
 
 class MusicBotTest(unittest.IsolatedAsyncioTestCase):
@@ -92,6 +117,9 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         self.dispatcher_.loop = asyncio.get_running_loop()
 
         self.guild_ = mock.Mock()
+
+        bot.MusicBot.get_spotify_client = create_mock_spotify
+        bot.MusicBot.pytube_playlist = mock_pytube_playlist
 
         self.music_bot_ = bot.MusicBot(
             self.guild_, self.dispatcher_.loop, self.dispatcher_.user
@@ -221,6 +249,41 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         play_message.channel.send.assert_awaited_with(
             "Sorry, I can't play livestreams :sob:"
         )
+        self.music_bot_.voice_client.finish_audio_source()
+
+    async def test_playlist_youtube(self):
+        url = "https://www.youtube.com/playlist?list=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        mock_author = create_mock_author(
+            voice_state=create_mock_voice_state(channel=create_mock_voice_channel())
+        )
+        play_message = create_mock_message(contents=f"-play {url}", author=mock_author)
+        mock_media = mock.Mock()
+        mock_media.title = "playlist item"
+        mock_media.duration = "00:01:00"
+        self.music_bot_.pafy_search = mock.Mock(return_value=mock_media)
+
+        await self.music_bot_.handle_message(play_message)
+
+        await asyncio.sleep(0.1)
+
+        play_message.channel.edit.assert_awaited_with("")
+
+    async def test_playlist_spotify(self):
+        url = "https://open.spotify.com/playlist/xxxxxxxxxxxxxxxxxxxxxx"
+        mock_author = create_mock_author(
+            voice_state=create_mock_voice_state(channel=create_mock_voice_channel())
+        )
+        play_message = create_mock_message(contents=f"-play {url}", author=mock_author)
+        mock_media = mock.Mock()
+        mock_media.title = "playlist item"
+        mock_media.duration = "00:01:00"
+        self.music_bot_.pafy_search = mock.Mock(return_value=mock_media)
+
+        await self.music_bot_.handle_message(play_message)
+
+        await asyncio.sleep(0.1)
+
+        play_message.channel.edit.assert_awaited_with("")
 
 
 if __name__ == "__main__":

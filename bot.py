@@ -7,6 +7,7 @@ Serves a bot on Discord for playing music in voice chat, as well as some fun add
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-lines
 
 
 import os
@@ -21,8 +22,9 @@ import discord
 import jokeapi
 import youtubesearchpython
 import pytube
-import pafy_fixed.pafy_fixed as pafy
 import spotipy
+
+import pafy_fixed.pafy_fixed as pafy
 
 
 class BotDispatcher(discord.Client):
@@ -137,10 +139,7 @@ class MusicBot:
         self.command_lock = asyncio.Lock()
         self.interrupt_play_stack = collections.deque()
 
-        self.spotify = spotipy.Spotify(
-            auth_manager=spotipy.oauth2.SpotifyClientCredentials()
-        )
-
+        self.spotify = self.get_spotify_client()
         self.register_command(
             "play",
             help_message="Play audio from URL",
@@ -367,6 +366,11 @@ class MusicBot:
         # Execute the command.
         await handler(message, command_content)
 
+    def get_spotify_client(self):
+        """Get Spotify client"""
+        creds = spotipy.oauth2.SpotifyClientCredentials()
+        return spotipy.Spotify(auth_manager=creds)
+
     def after_callback(self, _):
         """
         Plays the next item in queue if after_callback_blocked == False, otherwise stops
@@ -570,6 +574,9 @@ class MusicBot:
             def __iter__(self):
                 return self
 
+            def __getitem__(self, index):
+                return self.tracks[index]
+
             def __next__(self):
                 if self.index >= len(self.tracks):
                     raise StopIteration
@@ -591,12 +598,16 @@ class MusicBot:
 
         return SpotifyList(tracks, self.get_media)
 
+    def pytube_playlist(self, url):
+        """Get playlist info from pytube"""
+        return pytube.Playlist(url)
+
     def _get_youtube_tracks(self, url):
         """
         Fetch list of youtube tracks in playlist
         """
         # Get list of URLs to individual videos in playlist
-        links = pytube.Playlist(url)
+        links = self.pytube_playlist(url)
 
         class YouTubeList:
             """

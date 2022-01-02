@@ -43,8 +43,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install black pytest pylint
         pip install --no-deps -r requirements.txt
+        pip install black pylint
 
   format:
     needs: pip
@@ -60,6 +60,7 @@ jobs:
           ~/.python
           ~/.pip
     - name: Install dependencies
+      run: pip install --no-deps -r requirements.txt
       run: pip install black
     - name: Format with black
       run: find -name '*.py' -exec black --check {} +
@@ -78,7 +79,9 @@ jobs:
           ~/.python
           ~/.pip
     - name: Install dependencies
-      run: pip install pylint -r requirements.txt
+      run: |
+        pip install --no-deps -r requirements.txt
+        pip install pylint
     - name: Lint with PyLint
       run: find -name '*.py' -exec pylint {} +
 

@@ -284,7 +284,12 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0.1)
 
         assert len(self.music_bot_.media_deque) > 0
-        # play_message.channel.send.assert_awaited_with("Fetching playlist... ")
+        play_message.channel.send.has_awaits(
+            (
+                "Fetching playlist... ",
+                ":notes: Now Playing :notes:\n```\nplaylist item\n```",
+            )
+        )
 
     async def test_playlist_spotify(self):
         url = "https://open.spotify.com/playlist/xxxxxxxxxxxxxxxxxxxxxx"
@@ -302,7 +307,12 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0.1)
 
         assert len(self.music_bot_.media_deque) > 0
-        # play_message.channel.send.assert_awaited_with("Fetching playlist... ")
+        play_message.channel.send.has_awaits(
+            (
+                "Fetching playlist... ",
+                ":notes: Now Playing :notes:\n```\nplaylist item\n```",
+            )
+        )
 
 
 if __name__ == "__main__":

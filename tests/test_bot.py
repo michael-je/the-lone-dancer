@@ -84,11 +84,16 @@ def create_mock_message(
     return message
 
 
-def create_mock_track():
+def create_mock_track(name="Mock Track", artists="Mock Artist"):
+    if isinstance(artists, list):
+        artists = [{"name": artist} for artist in artists]
+    else:
+        artists = [{"name": artists}]
+
     return {
-        "name": "mock track",
+        "name": name,
         "duration_ms": 1000,
-        "artists": [{"name": "mock artist"}],
+        "artists": artists,
     }
 
 
@@ -96,14 +101,26 @@ def create_mock_spotify(_self):
     spotify = mock.Mock()
     spotify.album = mock.Mock(return_value={"tracks": {"items": [create_mock_track()]}})
     spotify.playlist = mock.Mock(
-        return_value={"tracks": {"items": [{"track": create_mock_track()}]}}
+        return_value={
+            "tracks": {
+                "items": [
+                    {"track": create_mock_track("track1")},
+                    {"track": create_mock_track("track2")},
+                    {"track": create_mock_track("track3")},
+                ]
+            }
+        }
     )
     spotify.track = mock.Mock(return_value=create_mock_track())
     return spotify
 
 
 def mock_pytube_playlist(_self, _url):
-    return ["https://www.youtube.com/watch?v=xxxxxxxxxxx"]
+    return [
+        "https://www.youtube.com/watch?v=xxxxxxxxxx1",
+        "https://www.youtube.com/watch?v=xxxxxxxxxx2",
+        "https://www.youtube.com/watch?v=xxxxxxxxxx3",
+    ]
 
 
 class MusicBotTest(unittest.IsolatedAsyncioTestCase):
@@ -266,7 +283,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         await asyncio.sleep(0.1)
 
-        play_message.channel.edit.assert_awaited_with("")
+        assert len(self.music_bot_.media_deque) > 0
+        # play_message.channel.send.assert_awaited_with("Fetching playlist... ")
 
     async def test_playlist_spotify(self):
         url = "https://open.spotify.com/playlist/xxxxxxxxxxxxxxxxxxxxxx"
@@ -283,7 +301,8 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         await asyncio.sleep(0.1)
 
-        play_message.channel.edit.assert_awaited_with("")
+        assert len(self.music_bot_.media_deque) > 0
+        # play_message.channel.send.assert_awaited_with("Fetching playlist... ")
 
 
 if __name__ == "__main__":

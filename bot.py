@@ -16,12 +16,33 @@ import asyncio
 import collections
 import traceback
 import time
+import random
 
 import discord
 import jokeapi
 import youtubesearchpython
 import pytube
 import pafy_fixed.pafy_fixed as pafy
+
+
+class FakeMedia:
+    """
+    Fake media for working on queue
+    """
+
+    # pylint: disable=too-few-public-methods
+    def __init__(self, title, duration=None):
+        self.title = title
+        self.duration = duration
+        if duration is None:
+            self.duration = (
+                f"{random.randint(0,99):0>2}:"
+                f"{random.randint(0,99):0>2}:"
+                f"{random.randint(0,99):0>2}"
+            )
+
+    def __repr__(self):
+        return f"{self.title} - {self.duration}"
 
 
 class BotDispatcher(discord.Client):
@@ -90,12 +111,20 @@ class MusicBot:
     """
 
     COMMAND_PREFIX = "-"
-    REACTION_EMOJI = "👍"
+    REACTION_EMOJI_OK = "👍"
+    REACTION_EMOJI_NO = "👎"
+    REACTION_EMOJI_COWBOY = "🤠"
+    REACTION_EMOJI_REWIND = "⏪"
+    REACTION_EMOJI_BACK = "◀️"
+    REACTION_EMOJI_PLAY_PAUSE = "⏯️"
+    REACTION_EMOJI_FORWARD = "▶️"
+    REACTION_EMOJI_FAST_FORWARD = "⏩"
     DOCS_URL = "github.com/michael-je/the-lone-dancer"
     DISCONNECT_TIMER_SECONDS = 600
     TEXTWIDTH = 60
     SYNTAX_LANGUAGE = "arm"
     N_PLAYLIST_SHOW = 10
+    N_PLAYLIST_PREV_SHOW = 2
 
     END_OF_QUEUE_MSG = ":sparkles: End of queue"
     NO_LIVESTREAM_MSG = "Sorry, I can't play livestreams :sob:"
@@ -235,6 +264,12 @@ class MusicBot:
             help_message="Tell a joke",
             handler=self.joke,
         )
+        self.register_command(
+            "fakequeue",
+            help_message="Fake queue for development",
+            handler=self.fake_queue,
+            omit_help=True,
+        )
 
     def register_command(
         self,
@@ -243,6 +278,7 @@ class MusicBot:
         handler=None,
         guarded_by: asyncio.Lock = None,
         argument_name: str = "",
+        omit_help=False,
     ):
         """
         Register a command with the name 'command_name'.
@@ -260,6 +296,7 @@ class MusicBot:
             Maximum 100 characters.
           argument_name: Name of argument used in help message.
              Requires length command_name+argument_name+3 < 20
+          omit_help: Omit command name in help message
         """
         assert handler
         assert command_name not in self.handlers
@@ -271,7 +308,8 @@ class MusicBot:
         help_prefix = f"{self.COMMAND_PREFIX}{command_name} {argument_name}"
         help_prefix = f"{help_prefix:<20}"
 
-        self.help_messages[command_name] = f"{help_prefix}{help_message}"
+        if not omit_help:
+            self.help_messages[command_name] = f"{help_prefix}{help_message}"
 
         if guarded_by:
 
@@ -526,6 +564,32 @@ class MusicBot:
 
         return media
 
+    def get_list_item_text(self, media, index=None, enumeration_width=2, index_text=""):
+        """Return a single line of the queue display"""
+        enumerate_width = 0
+        titlewidth = self.TEXTWIDTH - 10
+        titlewidth -= enumerate_width
+
+        logging.debug("Looking at media %s", media)
+        title = media.title
+        if index is not None:
+            if index_text != "":
+                index_text = index
+            # Add position in queue
+            title = f"{index_text:>{enumeration_width-len(index_text)}}: {title}"
+        if len(title) > titlewidth:
+            # Truncate long titles
+            title = title[: titlewidth - 3] + "..."
+
+        # Compute duration string mm:ss
+        times = list(map(int, media.duration.split(":")))
+        if len(times) == 2:
+            times = [0] + times
+
+        duration = f"({60*times[0] + times[1]:0>2}:{times[2]:0>2})"
+        # Time: 5-6 char + () + buffer = 10
+        return f"{title:<{titlewidth}}{duration:>10}"
+
     def show_list(
         self,
         media_list,
@@ -593,7 +657,7 @@ class MusicBot:
         """Play a playlist"""
         logging.info("Fetching playlist for user %s", message.author)
         playlist = pytube.Playlist(command_content)
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
         added = []
         n_failed = 0
         progress = 0
@@ -699,7 +763,7 @@ class MusicBot:
         self._stop()
         logging.info("Stopped media for user %s", message.author)
         self.loop.create_task(self.attempt_disconnect())
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def pause(self, message, _command_content):
         """
@@ -719,7 +783,7 @@ class MusicBot:
         self.voice_client.pause()
         logging.info("Paused media for user %s", message.author)
         self.loop.create_task(self.attempt_disconnect())
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def resume(self, message, _command_content):
         """
@@ -749,7 +813,7 @@ class MusicBot:
         elif not self.voice_client.is_playing():
             logging.info("Resuming for user %s (next_in_queue)", message.author)
             await self.next_in_queue()
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def skip(self, message, _command_content):
         """
@@ -763,7 +827,7 @@ class MusicBot:
             self._stop()
         else:
             await self.next_in_queue()
-            await message.add_reaction(MusicBot.REACTION_EMOJI)
+            await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def clear_queue(self, message, _command_content):
         """
@@ -773,7 +837,7 @@ class MusicBot:
             self.media_deque.popleft()
 
         self._stop()
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def show_current(self, message, _command_content):
         """
@@ -790,26 +854,58 @@ class MusicBot:
         reply += "```"
         await message.channel.send(reply)
 
+    async def fake_queue(self, message, command_content):
+        """Simulate adding songs to queue and showing it"""
+        for m in range(100):  # pylint: disable=invalid-name
+            self.media_deque_done.append(FakeMedia(f"Song -{m}"))
+        for m in range(100):  # pylint: disable=invalid-name
+            self.media_deque.append(FakeMedia(f"Song {m}"))
+        self.current_media = FakeMedia("Current Song")
+        logging.info("Added fake shit to queue!")
+
+        await self.show_queue(message, command_content)
+
     async def show_queue(self, message, _command_content):
         """
         Displays media that has been queued
         """
-        await self.show_current(message, _command_content)
-
-        reply = ""
         if len(self.media_deque) == 0:
-            reply += "```\n"
+            reply = "```\n"
             reply += " -- No audio in queue --\n"
             reply += "```"
             return
 
-        await message.channel.send(
-            self.show_list(
-                self.media_deque,
-                enumerate_list=True,
-                prefix="-- Queue --\n",
-            ),
-        )
+        queue_texts = [f"```{self.SYNTAX_LANGUAGE}"]
+        done_shown = 0
+        while done_shown < self.N_PLAYLIST_PREV_SHOW and done_shown < len(
+            self.media_deque_done
+        ):
+            done_shown += 1
+            queue_texts.append(
+                self.get_list_item_text(
+                    self.media_deque_done[-done_shown], index=-done_shown
+                )
+            )
+
+        queue_shown = 0
+        while (
+            queue_shown < self.N_PLAYLIST_SHOW - self.N_PLAYLIST_PREV_SHOW
+            and queue_shown < len(self.media_deque)
+        ):
+            queue_texts.append(
+                self.get_list_item_text(
+                    self.media_deque[queue_shown], index=queue_shown
+                )
+            )
+            queue_shown += 1
+
+        queue_texts.append("```")
+        queue_msg = await message.channel.send("\n".join(queue_texts))
+        await queue_msg.add_reaction(MusicBot.REACTION_EMOJI_REWIND)
+        await queue_msg.add_reaction(MusicBot.REACTION_EMOJI_BACK)
+        await queue_msg.add_reaction(MusicBot.REACTION_EMOJI_PLAY_PAUSE)
+        await queue_msg.add_reaction(MusicBot.REACTION_EMOJI_FORWARD)
+        await queue_msg.add_reaction(MusicBot.REACTION_EMOJI_FAST_FORWARD)
 
     async def move(self, message, _command_content):
         """
@@ -830,7 +926,7 @@ class MusicBot:
             return
 
         await self.voice_client.move_to(message.author.voice.channel)
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def show_help(self, message, command_content):
         """
@@ -858,7 +954,7 @@ class MusicBot:
             self._stop()
             await self.voice_client.disconnect()
             self.voice_client = None
-        await message.add_reaction(MusicBot.REACTION_EMOJI)
+        await message.add_reaction(MusicBot.REACTION_EMOJI_OK)
 
     async def hello(self, message, _command_content):
         """
@@ -908,7 +1004,7 @@ class MusicBot:
         """
         dinkster_source = await discord.FFmpegOpusAudio.from_probe("Dinkster.ogg")
         if await self.interrupt_play(message, dinkster_source):
-            await message.add_reaction("🤠")
+            await message.add_reaction(MusicBot.REACTION_EMOJI_COWBOY)
 
     async def joke(self, message, command_content, joke_pause=3):
         """

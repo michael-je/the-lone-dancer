@@ -60,8 +60,9 @@ jobs:
           ~/.python
           ~/.pip
     - name: Install dependencies
-      run: pip install --no-deps -r requirements.txt
-      run: pip install black
+      run: |
+        pip install --no-deps -r requirements.txt
+        pip install black
     - name: Format with black
       run: find -name '*.py' -exec black --check {} +
 

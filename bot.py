@@ -924,25 +924,24 @@ def parse():
     parser = argparse.ArgumentParser(description="This is The Lone Dancer")
     parser.add_argument(
         "-v",
+        "--verbose",
+        dest="v",
         action="count",
         default=0,
-        help="Increase verbosity, repeatedly; defaults to warning",
+        help="Increase verbosity, defaulting to WARNING, then for each 'v' added "
+        "increases to INFO then DEBUG; see --quiet for ERROR loglevel",
     )
-    parser.add_argument("-q", "--quiet", action="store_true", help="Log only errors")
     parser.add_argument(
-        "--logfile", action="store_const", const=str, help="Path to logfile, if any"
+        "-q", "--quiet", action="store_true", help="Log only errors (ERROR loglevel)"
     )
+    parser.add_argument("--log-file", help="Path to logfile, if any")
     parser.add_argument(
         "--env-file",
-        action="store_const",
-        const=str,
         default=".env",
         help="File containing discord token",
     )
     parser.add_argument(
         "--token",
-        action="store_const",
-        const=str,
         help="Discord token for bot; use --env-file if possible instead",
     )
     return parser.parse_args()
@@ -955,7 +954,8 @@ if __name__ == "__main__":
     if cli.quiet:
         log_level = logging.ERROR  # pylint: disable=invalid-name
     logging.basicConfig(
-        filename=cli.logfile,
+        filename=cli.log_file,
+        filemode="w+",
         level=log_level,
         format=LOG_FMT,
     )

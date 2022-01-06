@@ -17,6 +17,7 @@ import asyncio
 import collections
 import traceback
 import time
+import abc
 
 import discord
 import jokeapi
@@ -25,6 +26,79 @@ import pytube
 import spotipy
 
 import pafy_fixed.pafy_fixed as pafy
+
+
+class SongList:
+    """
+    Class for lazily getting PaFy data from spotify title and artist, while
+    having length
+    """
+
+    def __init__(self, tracks, get_media):
+        self.tracks = tracks
+        self.get_media = get_media
+        self.index = 0
+
+    def __len__(self):
+        return len(self.tracks)
+
+    def __iter__(self):
+        return self
+
+    @abc.abstractmethod
+    def fetch(self, track):
+        """Fetch/load track from some source"""
+        raise NotImplementedError
+
+    def __getitem__(self, index):
+        logging.info(
+            "Fetching DIRECTLY item at index %d/%d", self.index, len(self.tracks)
+        )
+        return self.fetch(self.tracks[index])
+
+    def __next__(self):
+        logging.info("Fetching NEXT item at index %d/%d", self.index, len(self.tracks))
+        if self.index >= len(self.tracks):
+            raise StopIteration
+        track = self.tracks[self.index]
+        self.index += 1
+        return self.fetch(track)
+
+
+class SpotifyList(SongList):
+    """Implementation of Songlist for Spotify"""
+
+    # pylint: disable=too-few-public-methods
+    def fetch(self, track):
+        title = track["name"]
+        artist = track["artists"][0]["name"]
+        assert isinstance(title, str)
+        assert isinstance(artist, str)
+        youtube_track = self.get_media(f"{title} - {artist}")
+        logging.info(
+            "Lazily fetched '%s - %s' %d/%d",
+            title,
+            artist,
+            self.index,
+            len(self.tracks),
+        )
+        return youtube_track
+
+
+class YouTubeList(SongList):
+    """Implementation of Songlist for Youtube playlists"""
+
+    # pylint: disable=too-few-public-methods
+
+    def fetch(self, track):
+        youtube_track = self.get_media(track)
+        logging.info(
+            "Lazily fetched '%s' %d/%d",
+            youtube_track.title,
+            self.index,
+            len(self.tracks),
+        )
+        return youtube_track
 
 
 class BotDispatcher(discord.Client):
@@ -368,7 +442,13 @@ class MusicBot:
 
     def get_spotify_client(self):
         """Get Spotify client"""
-        creds = spotipy.oauth2.SpotifyClientCredentials()
+        try:
+            creds = spotipy.oauth2.SpotifyClientCredentials()
+        except spotipy.SpotifyOauthError:
+            logging.warning(
+                "No spotipy credentials found. Running without spotify capabilities."
+            )
+            return None
         return spotipy.Spotify(auth_manager=creds)
 
     def after_callback(self, _):
@@ -545,6 +625,11 @@ class MusicBot:
 
         Each returned track is a dictionary of title, artist, length
         """
+        if self.spotify is None:
+            logging.error(
+                "Spotify capabilities not enabled. See docs on enabling spotify"
+            )
+            return None
         tracks = []
         if re.search(self.spotify_track_regex, url):
             tracks.append(self.spotify.track(url))
@@ -557,45 +642,6 @@ class MusicBot:
                 item["track"] for item in self.spotify.playlist(url)["tracks"]["items"]
             ]
 
-        class SpotifyList:
-            """
-            Class for lazily getting PaFy data from spotify title and artist, while
-            having length
-            """
-
-            def __init__(self, tracks, get_media):
-                self.tracks = tracks
-                self.get_media = get_media
-                self.index = 0
-
-            def __len__(self):
-                return len(self.tracks)
-
-            def __iter__(self):
-                return self
-
-            def __getitem__(self, index):
-                return self.tracks[index]
-
-            def __next__(self):
-                if self.index >= len(self.tracks):
-                    raise StopIteration
-                track = self.tracks[self.index]
-                self.index += 1
-                title = track["name"]
-                artist = track["artists"][0]["name"]
-                assert isinstance(title, str)
-                assert isinstance(artist, str)
-                youtube_track = self.get_media(f"{title} - {artist}")
-                logging.info(
-                    "Lazily fetched '%s - %s' %d/%d",
-                    title,
-                    artist,
-                    self.index,
-                    len(self.tracks),
-                )
-                return youtube_track
-
         return SpotifyList(tracks, self.get_media)
 
     def pytube_playlist(self, url):
@@ -606,41 +652,12 @@ class MusicBot:
         """
         Fetch list of youtube tracks in playlist
         """
-        # Get list of URLs to individual videos in playlist
-        links = self.pytube_playlist(url)
-
-        class YouTubeList:
-            """
-            Class for lazily getting PaFy data from YouTube title and artist, while
-            having length
-            """
-
-            def __init__(self, tracks, get_media):
-                self.tracks = tracks
-                self.get_media = get_media
-                self.index = 0
-
-            def __len__(self):
-                return len(self.tracks)
-
-            def __iter__(self):
-                return self
-
-            def __getitem__(self, index):
-                return self.tracks[index]
-
-            def __next__(self):
-                if self.index >= len(self.tracks):
-                    raise StopIteration
-                youtube_track = self.get_media(self.tracks[self.index])
-                self.index += 1
-                logging.info(
-                    "Lazily fetched '%s' %d/%d",
-                    youtube_track.title,
-                    self.index,
-                    len(self.tracks),
-                )
-                return youtube_track
+        links = None
+        if re.search(self.playlist_regex, url):
+            # Get list of URLs to individual videos in playlist
+            links = self.pytube_playlist(url)
+        else:
+            links = [url]
 
         return YouTubeList(links, self.get_media)
 

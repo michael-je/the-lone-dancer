@@ -626,6 +626,9 @@ class MusicBot:
             def __iter__(self):
                 return self
 
+            def __getitem__(self, index):
+                return self.tracks[index]
+
             def __next__(self):
                 if self.index >= len(self.tracks):
                     raise StopIteration
@@ -722,6 +725,42 @@ class MusicBot:
                 ":unamused: Queue is empty - please enter something to search!"
             )
 
+    async def play_single(self, message, command_content, playnext):
+        """
+        Play a single youtube or spotify track
+        """
+
+        # Single track/url/search term
+        media = None
+        if re.search(self.spotify_track_regex, command_content):
+            # Since _get_spotify_tracks returns a list of all songs in the spotify link
+            # the list will be 1-long, and only contain the requested song.
+            media = self._get_spotify_tracks(command_content)[0]
+        else:
+            # Same here, but for youtube tracks.
+            media = self._get_youtube_tracks(command_content)[0]
+
+        if media is None:
+            await message.channel.send(":robot: Error getting media data :robot:")
+            return
+
+        logging.info("Media found:\n%s", media)
+
+        if playnext:
+            self.media_deque.appendleft((media, message))
+        else:
+            self.media_deque.append((media, message))
+
+        voice_client = await self.create_or_get_voice_client(message)
+        if voice_client.is_playing():
+            logging.info("Added media to queue")
+            await message.channel.send(
+                f":clipboard: Added to Queue\n```\n{media.title}\n```"
+            )
+        else:
+            logging.info("Playing media")
+            await self.next_in_queue()
+
     async def play(self, message, command_content, playnext=False):
         """
         Play URL or first search term from command_content in the author's voice channel
@@ -744,32 +783,7 @@ class MusicBot:
             await self.playlist(message, command_content)
             return
 
-        # Single track/url/search term
-        media = None
-        if re.search(self.spotify_track_regex, command_content):
-            media = self._get_spotify_tracks(command_content)[0]
-        else:
-            media = self.get_media(command_content)
-
-        if media is None:
-            await message.channel.send(":robot: Error getting media data :robot:")
-            return
-
-        logging.info("Media found:\n%s", media)
-
-        if playnext:
-            self.media_deque.appendleft((media, message))
-        else:
-            self.media_deque.append((media, message))
-
-        if voice_client.is_playing():
-            logging.info("Added media to queue")
-            await message.channel.send(
-                f":clipboard: Added to Queue\n```\n{media.title}\n```"
-            )
-        else:
-            logging.info("Playing media")
-            await self.next_in_queue()
+        await self.play_single(message, command_content, playnext)
 
     async def play_next(self, message, command_content):
         """

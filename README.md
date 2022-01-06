@@ -14,10 +14,12 @@ This is a Discord bot centered around streaming music from **YouTube** into a vo
 		
 		python3 -m pip install --no-deps -r requirements.txt
 
-2. Set `DISCORD_TOKEN` in `.env` using `.env.example` as a base:
+2. Set `DISCORD_TOKEN` `DISCORD_TOKEN` in `.env` using `.env.example` as a base:
 
 		cp .env.example .env
 		$EDITOR .env
+
+2a. For spotify album/playlist/track functionality add `SPOTIPY_CLIENT_ID` and `SPOTIPY_CLIENT_SECRET` from your [spotify app](https://developer.spotify.com/dashboard/)
 
 3. Run the bot:
 		

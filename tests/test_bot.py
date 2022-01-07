@@ -82,6 +82,22 @@ def create_mock_message(
     return message
 
 
+def async_assert_no_warnings_wrapper(func):
+    """
+    Add this wrapper to tests to make sure that warnings are also cought as errors
+    """
+
+    def inner(self):
+        with warnings.catch_warnings(record=True) as cought_warnings:
+            self.dispatcher_.loop.run_until_complete(func(self))
+
+            if len(cought_warnings) != 0:
+                MusicBotTest.total_warnings += cought_warnings
+                raise Warning
+
+    return inner
+
+
 class MusicBotTest(unittest.IsolatedAsyncioTestCase):
     """MusicBot test suite"""
 
@@ -119,21 +135,6 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         warnings_report += "\n\n==========================="
 
         print(warnings_report)
-
-    def async_assert_no_warnings_wrapper(func): # pylint: disable=no-self-argument
-        """
-        Add this wrapper to tests to make sure that warnings are also cought as errors
-        """
-
-        def inner(self):
-            with warnings.catch_warnings(record=True) as cought_warnings:
-                self.dispatcher_.loop.run_until_complete(func(self))
-
-                if len(cought_warnings) != 0:
-                    MusicBotTest.total_warnings += cought_warnings
-                    raise Warning
-
-        return inner
 
     @async_assert_no_warnings_wrapper
     async def test_ignores_own_message(self):

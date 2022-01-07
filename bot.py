@@ -721,13 +721,19 @@ class MusicBot:
 
     async def remove_song_from_deque(self, message, command_content):
         """
-        Removes a specific song from the queue, based on its position therein.
+        Removes a specific song from the queue, based on its position therein
         """
         if len(self.media_deque) == 0:
             await message.channel.send(":unamused: The queue is empty...")
             return
 
         arg = command_content.split(maxsplit=1)[0]
+
+        range_regex = re.compile(r"(\d+)-(\d+)")
+        range_regex_match = range_regex.match(arg)
+        if range_regex_match:
+            await self.remove_range_from_deque(message, range_regex_match)
+            return
 
         if arg.lower() == "first":
             song_index = 0
@@ -737,7 +743,7 @@ class MusicBot:
             song_index = int(arg) - 1
         else:
             await message.channel.send(
-                f"{arg} isn't a valid song position :open_mouth:"
+                f"{arg} isn't a valid song position/range :open_mouth:"
             )
             return
 
@@ -748,6 +754,28 @@ class MusicBot:
             return
 
         del self.media_deque[song_index]
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def remove_range_from_deque(self, message, range_regex_match):
+        """
+        Receives a match regex and uses its 2 capture groups to remove a range of songs
+        from the queue.
+        """
+        range1 = int(range_regex_match.group(1))
+        range2 = int(range_regex_match.group(2))
+        range_start = min(range1, range2)
+        range_end = max(range1, range2)
+
+        if range_start < 1 or range_end > len(self.media_deque):
+            await message.channel.send(
+                f"{range_regex_match.group(0)} isn't a valid range :open_mouth:"
+            )
+            return
+
+        n_songs_to_remove = range_end - range_start + 1
+        for _ in range(n_songs_to_remove):
+            del self.media_deque[range_start - 1]
+
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def show_current(self, message, _command_content):

@@ -1,6 +1,6 @@
 # The Lone Dancer - Discord music bot
 
-This is a Discord bot centered around streaming music from **YouTube** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
+This is a Discord bot centered around streaming music from **YouTube** and **Spotify** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
 
 ---
 ## Main features

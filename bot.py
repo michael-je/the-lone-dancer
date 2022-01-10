@@ -16,12 +16,21 @@ import asyncio
 import collections
 import traceback
 import time
+import argparse
 
 import discord
 import jokeapi
 import youtubesearchpython
 import pytube
 import pafy_fixed.pafy_fixed as pafy
+
+LOG_FMT = (
+    "%(asctime)s - "
+    "%(levelname)-5s - "
+    "%(name)-20s - "
+    "line %(lineno)4s in %(funcName)-20s - "
+    "%(message)s"
+)
 
 
 class BotDispatcher(discord.Client):
@@ -600,7 +609,7 @@ class MusicBot:
         if media is None:
             return
 
-        logging.info("Media found:\n%s", media)
+        logging.debug("Media found:\n%s", media)
 
         if playnext:
             self.media_deque.appendleft((media, message))
@@ -608,7 +617,7 @@ class MusicBot:
             self.media_deque.append((media, message))
 
         if voice_client.is_playing():
-            logging.info("Added media to queue")
+            logging.info("Added '%s' to queue", media.title)
             await message.channel.send(
                 f":clipboard: Added to Queue\n```\n{media.title}\n```"
             )
@@ -910,20 +919,56 @@ class MusicBot:
             await message.channel.send(joke["delivery"])
 
 
+def parse():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="This is The Lone Dancer")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="v",
+        action="count",
+        default=0,
+        help="Increase verbosity, defaulting to WARNING, then for each 'v' added "
+        "increases to INFO then DEBUG; see --quiet for ERROR loglevel",
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Log only errors (ERROR loglevel)"
+    )
+    parser.add_argument("--log-file", help="Path to logfile, if any")
+    parser.add_argument(
+        "--env-file",
+        default=".env",
+        help="File containing discord token",
+    )
+    parser.add_argument(
+        "--token",
+        help="Discord token for bot; use --env-file if possible instead",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     print("Starting Discord bot")
+    cli = parse()
+    log_level = logging.WARNING - cli.v * 10  # make warning the default
+    if cli.quiet:
+        log_level = logging.ERROR  # pylint: disable=invalid-name
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        filename=cli.log_file,
+        filemode="w+",
+        level=log_level,
+        format=LOG_FMT,
     )
 
     token = os.getenv("DISCORD_TOKEN")
+    if cli.token is not None:
+        token = cli.token
     if token is None:
-        with open(".env", "r", encoding="utf-8") as env_file:
+        with open(cli.env_file, "r", encoding="utf-8") as env_file:
             for line in env_file.readlines():
                 match = re.search(r"^DISCORD_TOKEN=(.*)", line)
                 if match is not None:
-                    logging.info("Found token in file '.env'")
+                    logging.info("Found token in file '%s'", cli.env_file)
                     token = match.group(1).strip()
     assert token is not None
 

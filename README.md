@@ -1,6 +1,6 @@
 # The Lone Dancer - Discord music bot
 
-This is a Discord bot centered around streaming music from **YouTube** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
+This is a Discord bot centered around streaming music from **YouTube** and **Spotify** into a voice channel. It is in active development and recieves regular feature updates and bug fixes.
 
 ---
 ## Main features
@@ -18,6 +18,8 @@ This is a Discord bot centered around streaming music from **YouTube** into a vo
 
 		cp .env.example .env
 		$EDITOR .env
+
+2a. For spotify album/playlist/track functionality add `SPOTIPY_CLIENT_ID` and `SPOTIPY_CLIENT_SECRET` from your [spotify app](https://developer.spotify.com/dashboard/)
 
 3. Run the bot:
 		

@@ -223,7 +223,7 @@ class MusicBot:
         )
         self.register_command(
             "cancel",
-            help_message="Stop adding new songs to playlist",
+            help_message="Stop a playlist from fetching more songs",
             handler=self.cancel,
             # guarded_by=self.command_lock,
             argument_name="term/url",
@@ -627,7 +627,7 @@ class MusicBot:
         """
         if self.spotify is None:
             logging.error(
-                "Spotify capabilities not enabled. See docs on enabling spotify"
+                "Spotify capabilities not enabled. See docs to enable spotify"
             )
             return None
         tracks = []

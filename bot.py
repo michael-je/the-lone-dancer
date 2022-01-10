@@ -168,6 +168,8 @@ class AfterInterrupt:
             if len(self.stack) > 0:
                 after = self.stack.pop()
             self.voice_client.play(self.source, after=after)
+        else:
+            self.after_callback()
 
 
 class MusicBot:
@@ -460,7 +462,7 @@ class MusicBot:
             return None
         return spotipy.Spotify(auth_manager=creds)
 
-    def after_callback(self, _):
+    def after_callback(self, *_args):
         """
         Plays the next item in queue if after_callback_blocked == False, otherwise stops
         the music. Used as a callback for play().
@@ -914,6 +916,9 @@ class MusicBot:
         if self.current_media is None and len(self.media_deque) == 0:
             await message.channel.send(":sparkles: Nothing in queue")
             return
+        if self.current_media is None:
+            await message.channel.send(":notes: Current song is paused :play_pause:")
+            return
 
         reply = ""
         reply += ":notes: Now playing :notes:\n"
@@ -1017,7 +1022,7 @@ class MusicBot:
         """
         voice_client = await self.create_or_get_voice_client(message)
         if not voice_client:
-            return
+            return False
 
         current_source = voice_client.source
         voice_client.pause()

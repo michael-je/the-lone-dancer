@@ -2,6 +2,7 @@
 # pylint: disable=missing-module-docstring
 
 from unittest import mock
+import warnings
 import asyncio
 import unittest
 import bot
@@ -81,6 +82,22 @@ def create_mock_message(
     return message
 
 
+def async_assert_no_warnings_wrapper(func):
+    """
+    Add this wrapper to tests to make sure that warnings are also cought as errors
+    """
+
+    def inner(self):
+        with warnings.catch_warnings(record=True) as cought_warnings:
+            self.dispatcher_.loop.run_until_complete(func(self))
+
+            if len(cought_warnings) != 0:
+                MusicBotTest.total_warnings += cought_warnings
+                raise Warning
+
+    return inner
+
+
 class MusicBotTest(unittest.IsolatedAsyncioTestCase):
     """MusicBot test suite"""
 
@@ -103,6 +120,23 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             return_value=self.mock_audio_source_
         )
 
+    @classmethod
+    def setUpClass(cls):
+        cls.total_warnings = []
+
+    @classmethod
+    def tearDownClass(cls):
+        if len(cls.total_warnings) == 0:
+            return
+
+        warnings_report = "\n\n======== WARNINGS ========="
+        for warning in cls.total_warnings:
+            warnings_report += "\n\n" + str(warning.message)
+        warnings_report += "\n\n==========================="
+
+        print(warnings_report)
+
+    @async_assert_no_warnings_wrapper
     async def test_ignores_own_message(self):
         message = create_mock_message(
             contents="-Some bot message", author=self.dispatcher_.user
@@ -113,6 +147,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         # Bot didn't respond with anything.
         message.channel.send.assert_not_awaited()
 
+    @async_assert_no_warnings_wrapper
     async def test_ignores_message_without_command_prefix(self):
         ignore_message = create_mock_message(contents="Some non-command message")
 
@@ -121,6 +156,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
         # Bot didn't respond with anything.
         ignore_message.channel.send.assert_not_awaited()
 
+    @async_assert_no_warnings_wrapper
     async def test_hello_command_sends_message(self):
         hello_message = create_mock_message(contents="-hello")
 
@@ -128,6 +164,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
 
         hello_message.channel.send.assert_awaited_with(":wave: Hello! default_user")
 
+    @async_assert_no_warnings_wrapper
     async def test_play_fails_when_user_not_in_voice_channel(self):
         play_message = create_mock_message(
             contents="-play song", author=create_mock_author()
@@ -140,6 +177,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             "the :robot:"
         )
 
+    @async_assert_no_warnings_wrapper
     async def test_play_connects_deafaned(self):
         play_message = create_mock_message(
             contents="-play song",
@@ -170,6 +208,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             ":notes: Now Playing :notes:\n```\nsong\n```"
         )
 
+    @async_assert_no_warnings_wrapper
     async def test_second_play_command_queues_media(self):
         author = create_mock_author(
             voice_state=create_mock_voice_state(channel=create_mock_voice_channel())
@@ -202,6 +241,7 @@ class MusicBotTest(unittest.IsolatedAsyncioTestCase):
             ":notes: Now Playing :notes:\n```\nsong2\n```"
         )
 
+    @async_assert_no_warnings_wrapper
     async def test_play_livestream_informs_user_unable_to_play(self):
         mock_author = create_mock_author(
             voice_state=create_mock_voice_state(channel=create_mock_voice_channel())

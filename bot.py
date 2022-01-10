@@ -400,7 +400,7 @@ class MusicBot:
             self.loop.create_task(
                 message.channel.send("Sorry, I can't play livestreams :sob:")
             )
-            self.next_in_queue()
+            await self.next_in_queue()
             return
 
         audio_url = media.getbestaudio().url

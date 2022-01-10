@@ -177,7 +177,7 @@ class MusicBot:
 
     COMMAND_PREFIX = "-"
     REACTION_EMOJI = "👍"
-    DOCS_URL = "github.com/michael-je/the-lone-dancer"
+    DOCS_URL = "www.github.com/michael-je/the-lone-dancer"
     DISCONNECT_TIMER_SECONDS = 600
     TEXTWIDTH = 60
     SYNTAX_LANGUAGE = "arm"
@@ -287,6 +287,13 @@ class MusicBot:
             guarded_by=self.command_lock,
         )
         self.register_command(
+            "remove",
+            help_message="Remove Nth, first, or last song from the queue",
+            handler=self.remove_song_from_deque,
+            guarded_by=self.command_lock,
+            argument_name="position",
+        )
+        self.register_command(
             "queue",
             help_message="Show the current queue",
             handler=self.show_queue,
@@ -360,17 +367,17 @@ class MusicBot:
           help_message: A string describing how to use the given handler.
             Maximum 100 characters.
           argument_name: Name of argument used in help message.
-             Requires length command_name+argument_name+3 < 20
+             Requires length command_name+argument_name+3 < 21
         """
         assert handler
         assert command_name not in self.handlers
         assert len(help_message) < 100
-        assert len(command_name) + len(argument_name) + 3 < 20
+        assert len(command_name) + len(argument_name) + 3 < 21
 
         if len(argument_name) > 0:
             argument_name = f"<{argument_name}>"
         help_prefix = f"{self.COMMAND_PREFIX}{command_name} {argument_name}"
-        help_prefix = f"{help_prefix:<20}"
+        help_prefix = f"{help_prefix:<21}"
 
         self.help_messages[command_name] = f"{help_prefix}{help_message}"
 
@@ -905,6 +912,65 @@ class MusicBot:
             self.media_deque.popleft()
 
         self._stop()
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def remove_song_from_deque(self, message, command_content):
+        """
+        Removes a specific song from the queue, based on its position therein
+        """
+        if len(self.media_deque) == 0:
+            await message.channel.send(":unamused: The queue is empty...")
+            return
+
+        arg = command_content.split(maxsplit=1)[0]
+
+        range_regex = re.compile(r"(\d+)-(\d+)")
+        range_regex_match = range_regex.match(arg)
+        if range_regex_match:
+            await self.remove_range_from_deque(message, range_regex_match)
+            return
+
+        if arg.lower() == "first":
+            song_index = 0
+        elif arg.lower() == "last":
+            song_index = -1
+        elif arg.isnumeric():
+            song_index = int(arg) - 1
+        else:
+            await message.channel.send(
+                f"{arg} isn't a valid song position/range :open_mouth:"
+            )
+            return
+
+        if song_index < -1 or song_index >= len(self.media_deque):
+            await message.channel.send(
+                "Pick something *in* the queue! :face_with_symbols_over_mouth:"
+            )
+            return
+
+        del self.media_deque[song_index]
+        await message.add_reaction(MusicBot.REACTION_EMOJI)
+
+    async def remove_range_from_deque(self, message, range_regex_match):
+        """
+        Receives a match regex and uses its 2 capture groups to remove a range of songs
+        from the queue.
+        """
+        range1 = int(range_regex_match.group(1))
+        range2 = int(range_regex_match.group(2))
+        range_start = min(range1, range2)
+        range_end = max(range1, range2)
+
+        if range_start < 1 or range_end > len(self.media_deque):
+            await message.channel.send(
+                f"{range_regex_match.group(0)} isn't a valid range :open_mouth:"
+            )
+            return
+
+        n_songs_to_remove = range_end - range_start + 1
+        for _ in range(n_songs_to_remove):
+            del self.media_deque[range_start - 1]
+
         await message.add_reaction(MusicBot.REACTION_EMOJI)
 
     async def show_current(self, message, _command_content):
